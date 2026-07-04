@@ -52,20 +52,18 @@ bash scripts/init-env.sh   # локально
 ```
 /home/c502022/music.arturlun.ru/
 ├── om-player/                         ← git clone
-│   ├── public -> backend/public       ← в репозитории
-│   ├── backend/
-│   │   ├── public/                    ← index.php, .htaccess, media/
-│   │   ├── var/
-│   │   ├── vendor/
-│   │   └── .env
-│   └── scripts/setup-www-symlink.sh
-└── www -> .../om-player/public        ← корень сайта в панели (symlink)
+│   └── backend/
+│       ├── public/                    ← index.php, .htaccess, media/
+│       ├── var/
+│       ├── vendor/
+│       └── .env
+└── www -> .../om-player/backend/public   ← корень сайта (symlink)
 ```
 
-Пример (как у другого проекта):
+Пример (как у другого проекта, только `backend/public`):
 
 ```text
-lrwxrwxrwx www -> /home/c502022/music.arturlun.ru/om-player/public
+lrwxrwxrwx www -> /home/c502022/music.arturlun.ru/om-player/backend/public
 ```
 
 После `git clone`:
@@ -75,7 +73,7 @@ cd /home/c502022/music.arturlun.ru/om-player
 bash scripts/setup-www-symlink.sh
 ```
 
-Скрипт создаёт `om-player/public` и `../www` → `om-player/public`.  
+Скрипт создаёт `../www` → `om-player/backend/public`.  
 Если каталог сайта другой — укажите явно:
 
 ```bash
@@ -84,7 +82,7 @@ SITE_DIR=/home/c502022/music.arturlun.ru bash scripts/setup-www-symlink.sh
 
 ### Почему это работает
 
-- Apache document root = `www/` → `om-player/public` → `backend/public/`
+- Apache document root = `www/` → `backend/public/`
 - PHP `kernel.project_dir` = `backend/` (реальный путь через `index.php`)
 - `.env`, `var/`, `config/` — **вне** document root
 - Пути в коде (`%kernel.project_dir%/public/media`) не зависят от `www/`
@@ -268,7 +266,7 @@ php bin/console app:import-album \
 | Симптом | Решение |
 |---------|---------|
 | 500 на всех страницах | Права на `backend/var/`; `open_basedir` должен включать каталог `om-player/` (не только `www/`); `cache:clear --env=prod` |
-| 404, белая страница | `www` — symlink на `om-player/public` рядом с репозиторием; `bash scripts/setup-www-symlink.sh` |
+| 404, белая страница | `www` → `om-player/backend/public`; `bash scripts/setup-www-symlink.sh` |
 | Аудио не играет / 403 | API отдаёт URL с `sig=`; прямой `/media/audio/...` без подписи блокируется |
 | Seek не работает | Убедитесь, что `.htaccess` не отдаёт audio как статику (правило `media/audio/` → index.php) |
 | Upload failed | Лимиты PHP в панели; права на `var/upload-staging` и `public/media` |

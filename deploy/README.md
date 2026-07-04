@@ -10,8 +10,8 @@
 ```
 /home/user/music.arturlun.ru/
 ├── om-player/
-│   └── public -> backend/public
-└── www -> .../om-player/public     ← document root
+│   └── backend/public/
+└── www -> .../om-player/backend/public     ← document root
 ```
 
 ```bash

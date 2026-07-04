@@ -1,5 +1,5 @@
 # Apache / shared-хостинг (NetAngels и аналоги)
-# На сервере: www/ (корень сайта) -> .../om-player/public -> backend/public
+# На сервере: www/ -> .../om-player/backend/public
 # Symfony: kernel.project_dir = backend/ — не зависит от symlink www.
 
 DirectoryIndex index.php
