@@ -1,0 +1,65 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Embed-плеер — OmPlayer{% endblock %}
+
+{% block body %}
+<section class="embed-demo">
+    <header class="embed-demo__intro">
+        <p class="embed-demo__eyebrow">OmPlayer</p>
+        <h1 class="embed-demo__title">Встраивание на сайт</h1>
+        <p class="embed-demo__lead">
+            Компактный плеер для статьи, лендинга или блока «послушать здесь».
+            Одна строка кода — и трек играет прямо на вашей странице.
+        </p>
+    </header>
+
+    <div class="embed-demo__layout">
+        <article class="embed-demo__card embed-demo__card--player">
+            <div class="embed-demo__card-head">
+                <h2 class="embed-demo__card-title">Живой пример</h2>
+                <p class="embed-demo__card-desc">Нажмите play и попробуйте перемотку</p>
+            </div>
+            <div class="embed-demo__player-frame">
+                {% if demoTrackSlug %}
+                    <om-player
+                        mode="embed"
+                        track="{{ demoTrackSlug }}"
+                        api-base="{{ app.request.schemeAndHttpHost }}/api/v1"
+                        theme="light"
+                    ></om-player>
+                {% else %}
+                    <p class="embed-demo__empty">Опубликуйте хотя бы один трек, чтобы увидеть пример.</p>
+                {% endif %}
+            </div>
+        </article>
+
+        <article class="embed-demo__card embed-demo__card--code">
+            <div class="embed-demo__card-head">
+                <h2 class="embed-demo__card-title">Код для вставки</h2>
+                <p class="embed-demo__card-desc">Подключите скрипт плеера и добавьте тег на страницу</p>
+            </div>
+            <div class="embed-demo__code-block" aria-label="Пример HTML">
+                <code>&lt;script type="module" src="/build/player/om-player.iife.js"&gt;&lt;/script&gt;
+
+&lt;om-player
+  mode="embed"
+  track="{{ demoTrackSlug|default('slug-treka') }}"
+  api-base="{{ app.request.schemeAndHttpHost }}/api/v1"
+  theme="light"
+&gt;&lt;/om-player&gt;</code>
+            </div>
+            <ul class="embed-demo__notes">
+                <li><strong>track</strong> — slug опубликованного трека</li>
+                <li><strong>api-base</strong> — адрес вашего API OmPlayer</li>
+                <li><strong>theme</strong> — light или dark под ваш дизайн</li>
+            </ul>
+        </article>
+    </div>
+
+    <div class="embed-demo__actions">
+        <a class="btn btn--primary btn--lg" href="{{ path('web_about') }}">Подробнее о проекте</a>
+        <a class="btn btn--ghost btn--lg" href="{{ path('web_music_catalog') }}">Слушать альбомы</a>
+        <a class="btn btn--ghost btn--lg" href="{{ path('web_home') }}">На главную</a>
+    </div>
+</section>
+{% endblock %}

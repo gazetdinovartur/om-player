@@ -1,0 +1,118 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}О проекте — OmPlayer{% endblock %}
+
+{% block body %}
+<section class="about-intro-panel">
+    <div class="about-intro-panel__lead">
+        <p class="about-hero__eyebrow">OmPlayer</p>
+        <h1 class="page-hero__title">Музыка, которая живёт на&nbsp;вашем сайте</h1>
+        <p class="page-hero__lead about-intro-panel__tagline">
+            Альбомы и плеер — в одном месте. Нажали play — слушаете здесь.
+            Перешли на другую страницу — трек идёт дальше. Вернулись позже — мини-плеер помнит паузу.
+        </p>
+    </div>
+    <div class="about-intro-panel__story">
+        <h2 class="about-block__title">О чём проект</h2>
+        <div class="about-prose">
+            <p>
+                OmPlayer — это место, где можно слушать релизы без регистрации и без переходов
+                в другие сервисы. Обложка, альбом, все треки — рядом, на одном сайте.
+            </p>
+            <p>
+                Мини-плеер внизу экрана остаётся с вами на каждой странице — трек не обрывается,
+                пока вы читаете материалы. Закрыли вкладку и вернулись — продолжите с того же места.
+            </p>
+        </div>
+    </div>
+</section>
+
+<section class="about-block">
+    <h2 class="about-block__title">Встроить куда нужно</h2>
+    <article class="about-embed-spotlight">
+        <div class="about-embed-spotlight__icon" aria-hidden="true">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3m10 0h3a2 2 0 0 0 2-2v-3"/>
+                <rect x="7" y="7" width="10" height="10" rx="1.5"/>
+            </svg>
+        </div>
+        <div class="about-embed-spotlight__body">
+            <p class="about-embed-spotlight__text">
+                Тот же плеер — на лендинг, в статью или другой проект. Одна строка кода,
+                ваш домен, ваш дизайн вокруг.
+            </p>
+            <div class="about-embed-spotlight__code" aria-label="Пример встраивания">
+                <code>&lt;om-player mode="embed" track="slug"&gt;&lt;/om-player&gt;</code>
+            </div>
+        </div>
+        <a class="btn btn--primary" href="{{ path('web_embed_demo') }}">Посмотреть embed</a>
+    </article>
+    <ul class="about-principles about-principles--secondary">
+        <li class="about-principles__item">
+            <span class="about-principles__label">Компонент, не виджет</span>
+            <span class="about-principles__text">Встраивается в вашу страницу — без iframe и чужого интерфейса поверх.</span>
+        </li>
+        <li class="about-principles__item">
+            <span class="about-principles__label">Слушать просто</span>
+            <span class="about-principles__text">Без аккаунта и лишних экранов. Открыли альбом — нажали play.</span>
+        </li>
+    </ul>
+</section>
+
+<section class="about-block">
+    <h2 class="about-block__title">Что умеет плеер</h2>
+    <div class="about-features__grid">
+        <article class="about-features__card">
+            <div class="about-features__icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="14" width="18" height="6" rx="2"/><path d="M7 14V8a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v6"/></svg>
+            </div>
+            <h3 class="about-features__name">Мини-плеер</h3>
+            <p class="about-features__desc">Полоска внизу — обложка, управление, прогресс. Полупрозрачная, не перекрывает контент.</p>
+        </article>
+        <article class="about-features__card">
+            <div class="about-features__icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="10"/><path d="M10 8l6 4-6 4V8z"/></svg>
+            </div>
+            <h3 class="about-features__name">Альбом целиком</h3>
+            <p class="about-features__desc">Список треков, shuffle, repeat, избранное. Страница альбома — как полноценный релиз.</p>
+        </article>
+        <article class="about-features__card">
+            <div class="about-features__icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+            </div>
+            <h3 class="about-features__name">Память сессии</h3>
+            <p class="about-features__desc">После перезагрузки — тот же трек и позиция. Продолжить с того места, где остановились.</p>
+        </article>
+        <article class="about-features__card">
+            <div class="about-features__icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+            </div>
+            <h3 class="about-features__name">С телефона</h3>
+            <p class="about-features__desc">Управление с экрана блокировки. Музыка играет, пока вы заняты другим.</p>
+        </article>
+        <article class="about-features__card">
+            <div class="about-features__icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            </div>
+            <h3 class="about-features__name">Поиск</h3>
+            <p class="about-features__desc">Быстро найти альбом или трек по названию в каталоге.</p>
+        </article>
+        <article class="about-features__card">
+            <div class="about-features__icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2"/></svg>
+            </div>
+            <h3 class="about-features__name">Светлая и тёмная тема</h3>
+            <p class="about-features__desc">Переключатель в шапке — как удобнее смотреть и слушать.</p>
+        </article>
+    </div>
+</section>
+
+<section class="about-cta">
+    <p class="about-cta__text">Встроите плеер на свой сайт — или просто откройте альбомы и нажмите play.</p>
+    <div class="about-cta__actions">
+        <a class="btn btn--primary btn--lg" href="{{ path('web_embed_demo') }}">Пример embed</a>
+        <a class="btn btn--ghost btn--lg" href="{{ path('web_music_catalog') }}">Слушать альбомы</a>
+        <a class="btn btn--ghost btn--lg" href="{{ path('web_home') }}">На главную</a>
+    </div>
+</section>
+{% endblock %}

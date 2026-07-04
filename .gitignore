@@ -1,0 +1,15 @@
+# OS
+.DS_Store
+
+# Player
+/player/node_modules/
+
+# Backend (see backend/.gitignore for vendor, var, .env)
+/backend/vendor/
+/backend/var/
+/backend/.env.local
+/backend/.phpunit.cache/
+
+# Keep built assets in repo:
+# /player/dist/
+# /backend/public/build/player/

@@ -1,0 +1,37 @@
+.PHONY: install build dev migrate server test docker-up docker-down docker-logs docker-mysql
+
+install:
+	cd backend && composer install
+	cd player && npm install
+
+build:
+	bash scripts/build.sh
+
+migrate:
+	bash scripts/migrate.sh
+
+server:
+	cd backend && php -c php.ini -S 127.0.0.1:8000 -t public public/router.php
+
+test:
+	cd backend && php bin/console doctrine:migrations:migrate --no-interaction --env=test
+	cd backend && vendor/bin/phpunit
+
+dev: build migrate server
+
+seed-album:
+	cd backend && php bin/console app:import-album --purge
+
+# Docker — full stack (MySQL + backend app)
+docker-up: build
+	docker compose up -d --build
+
+docker-down:
+	docker compose down
+
+docker-logs:
+	docker compose logs -f app mysql
+
+# MySQL only — then use make migrate && make server on host
+docker-mysql:
+	docker compose up -d mysql

@@ -1,0 +1,60 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ album.title }} — OmPlayer{% endblock %}
+
+{% block head %}
+    {% if album.coverPath %}
+        <meta property="og:title" content="{{ album.title }}">
+        <meta property="og:description" content="{{ album.artist.name }} — {{ album.type.label }}">
+        <meta property="og:image" content="{{ absolute_url(asset('media/' ~ album.coverPath)) }}">
+        <meta property="og:type" content="music.album">
+    {% endif %}
+{% endblock %}
+
+{% block body %}
+<section class="album-hero"{% if album.coverPath %} style="--album-cover: url('{{ asset('media/' ~ album.coverPath) }}')"{% endif %}>
+    <div class="album-hero__backdrop" aria-hidden="true"></div>
+    <div class="album-hero__content">
+        <div class="album-hero__cover">
+            {% if album.coverPath %}
+                <img src="{{ asset('media/' ~ album.coverPath) }}" alt="{{ album.title }}" loading="eager">
+            {% else %}
+                <div class="album-card__placeholder album-card__placeholder--large"></div>
+            {% endif %}
+        </div>
+        <div class="album-hero__info">
+            <span class="pill pill--soft">{{ album.type.label }}</span>
+            <h1 class="album-hero__title">{{ album.title }}</h1>
+            <p class="album-hero__artist">{{ album.artist.name }}</p>
+            <p class="album-hero__meta">
+                {% if album.releasedAt %}{{ album.releasedAt|date('Y') }}{% endif %}
+                · {{ album.tracks|length }} {{ album.tracks|length == 1 ? 'трек' : (album.tracks|length < 5 ? 'трека' : 'треков') }}
+            </p>
+            {% if album.description %}
+                <p class="album-hero__description">{{ album.description }}</p>
+            {% endif %}
+            <div class="album-hero__actions">
+                <button type="button" class="btn btn--primary btn--lg" data-om-play-album="{{ album.slug }}">
+                    <svg class="btn__icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.14v13.72L19 12 8 5.14z"/></svg>
+                    Слушать альбом
+                </button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="player-shell">
+    <script type="application/json" id="album-tracks-json">{{ albumTracksJson|raw }}</script>
+    <om-player
+        mode="full"
+        album="{{ album.slug }}"
+        data-queue-source="album-tracks-json"
+        {% if album.coverPath %}album-cover="{{ asset('media/' ~ album.coverPath) }}"{% endif %}
+        album-title="{{ album.title }}"
+        album-artist="{{ album.artist.name }}"
+        api-base="{{ app.request.schemeAndHttpHost }}/api/v1"
+        theme="light"
+        class="album-page__player"
+    ></om-player>
+</div>
+{% endblock %}

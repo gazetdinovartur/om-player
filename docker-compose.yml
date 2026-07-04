@@ -1,0 +1,58 @@
+name: om-player
+
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: om_player
+      MYSQL_USER: om
+      MYSQL_PASSWORD: om
+    ports:
+      - '3306:3306'
+    volumes:
+      - om_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-uom', '-pom']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    ports:
+      - '8000:8000'
+    volumes:
+      - ./backend:/app
+      - app_vendor:/app/vendor
+    environment:
+      APP_ENV: dev
+      APP_SECRET: dev_secret_change_in_production_32chars
+      DATABASE_URL: mysql://om:om@mysql:3306/om_player?serverVersion=8.4&charset=utf8mb4
+      DEFAULT_URI: http://127.0.0.1:8000
+      CORS_ALLOW_ORIGIN: '^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$'
+      JMO_DEFAULT_ARTIST_NAME: 'Артур Лун'
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # Optional local S3 — docker compose --profile s3 up
+  minio:
+    profiles: [s3]
+    image: minio/minio:latest
+    command: server /data --console-address ':9001'
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - om_minio_data:/data
+
+volumes:
+  om_mysql_data:
+  om_minio_data:
+  app_vendor:

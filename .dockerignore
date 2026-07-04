@@ -1,0 +1,6 @@
+backend/var/
+backend/vendor/
+player/node_modules/
+.git/
+.idea/
+.DS_Store

@@ -1,0 +1,111 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block content_title %}Загрузка трека{% endblock %}
+
+{% block main %}
+<div class="track-upload" data-upload-url="{{ upload_url }}">
+    <div class="track-upload__alert track-upload__alert--error{% if not error %} is-hidden{% endif %}" data-alert-error role="alert">
+        {{ error|default('') }}
+    </div>
+    <div class="track-upload__alert track-upload__alert--success{% if not success %} is-hidden{% endif %}" data-alert-success role="status">
+        {{ success|default('') }}
+    </div>
+
+    <div class="track-upload__dropzone{% if preview and token %} is-hidden{% endif %}" data-dropzone tabindex="0" role="button" aria-label="Загрузить аудиофайл">
+        <input type="file" class="track-upload__input" data-file-input accept="audio/mpeg,audio/mp3,audio/mp4,audio/x-m4a,audio/*,.mp3,.m4a" hidden>
+        <div class="track-upload__dropzone-inner">
+            <div class="track-upload__icon" aria-hidden="true">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                    <circle cx="20" cy="20" r="18" stroke="currentColor" stroke-width="1.5" opacity="0.35"/>
+                    <path d="M14 26V18l6-4 6 4v8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M17 22h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <p class="track-upload__headline">Перетащите файл сюда</p>
+            <p class="track-upload__hint">или нажмите для выбора · MP3, M4A · до 64 МБ</p>
+            <p class="track-upload__hint track-upload__hint--muted">Метаданные и обложка подтянутся автоматически</p>
+        </div>
+        <div class="track-upload__loading is-hidden" data-loading aria-live="polite">
+            <span class="track-upload__spinner" aria-hidden="true"></span>
+            <span>Читаем файл и теги…</span>
+        </div>
+    </div>
+
+    <section class="track-upload__preview{% if not preview or not token %} is-hidden{% endif %}" data-preview>
+        <div class="track-upload__preview-head">
+            <div>
+                <p class="track-upload__file-name" data-file-name>{{ fileName|default('') }}</p>
+                <p class="track-upload__file-meta" data-duration-meta>
+                    {% if preview %}
+                        {{ preview.durationLabel }}{% if preview.genre %} · {{ preview.genre }}{% endif %}
+                    {% endif %}
+                </p>
+            </div>
+            <button type="button" class="track-upload__reset" data-reset>Другой файл</button>
+        </div>
+
+        <form class="track-upload__form" data-confirm-form method="post">
+            <input type="hidden" name="step" value="confirm">
+            <input type="hidden" name="token" value="{{ token|default('') }}" data-token-input>
+
+            <div class="track-upload__layout">
+                <div class="track-upload__cover-wrap">
+                    <img
+                        class="track-upload__cover{% if not preview or not preview.coverDataUri %} is-hidden{% endif %}"
+                        data-cover
+                        src="{{ preview.coverDataUri|default('') }}"
+                        alt="Обложка из файла"
+                    >
+                    <div class="track-upload__cover-placeholder{% if preview and preview.coverDataUri %} is-hidden{% endif %}" data-cover-placeholder>
+                        <span>Нет обложки</span>
+                    </div>
+                </div>
+
+                <div class="track-upload__fields">
+                    <label class="track-upload__field">
+                        <span>Название</span>
+                        <input type="text" name="title" data-field-title value="{{ preview.title|default('') }}" required>
+                    </label>
+                    <label class="track-upload__field">
+                        <span>Артист</span>
+                        <input type="text" name="artist" data-field-artist value="{{ preview.artist|default('') }}">
+                    </label>
+                    <label class="track-upload__field">
+                        <span>Альбом</span>
+                        <input type="text" name="album" data-field-album value="{{ preview.album|default('') }}">
+                    </label>
+                    <div class="track-upload__row">
+                        <label class="track-upload__field">
+                            <span>№ трека</span>
+                            <input type="number" name="trackNumber" data-field-track-number value="{{ preview.trackNumber|default('') }}" min="1">
+                        </label>
+                        <label class="track-upload__field">
+                            <span>Год</span>
+                            <input type="number" name="year" data-field-year value="{{ preview.year|default('') }}" min="1900" max="2100">
+                        </label>
+                    </div>
+                    <div class="track-upload__checks">
+                        <label class="track-upload__check">
+                            <input type="checkbox" name="publish" value="1" data-field-publish>
+                            <span>Опубликовать трек</span>
+                        </label>
+                        <label class="track-upload__check">
+                            <input type="checkbox" name="publish_album" value="1" data-field-publish-album checked>
+                            <span>Опубликовать альбом</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="track-upload__actions">
+                <button type="submit" class="track-upload__submit" data-submit>
+                    <span data-submit-label>Сохранить в каталог</span>
+                    <span class="track-upload__spinner track-upload__spinner--sm is-hidden" data-submit-spinner aria-hidden="true"></span>
+                </button>
+            </div>
+        </form>
+    </section>
+</div>
+
+<script src="{{ asset('js/admin-upload.js') }}" defer></script>
+{% endblock %}

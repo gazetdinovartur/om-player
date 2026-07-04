@@ -1,0 +1,98 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}OmPlayer{% endblock %}
+
+{% block body %}
+<section class="hero-shell">
+    <div class="hero-shell__grid">
+        <div class="hero">
+            <div class="hero-viz" id="hero-viz" aria-hidden="true" hidden>
+                <canvas class="hero-viz__canvas" id="hero-viz-canvas"></canvas>
+            </div>
+            <p class="hero__eyebrow">OmPlayer</p>
+            <h1 class="hero__title">Музыка, которая<br>живёт на вашем сайте</h1>
+            <p class="hero__text">
+                Музыка играет, пока вы на сайте. Вернётесь позже — продолжите с той же секунды.
+            </p>
+            <div class="hero__actions">
+                {% if latestAlbum %}
+                    <button type="button" class="btn btn--primary btn--lg" data-om-play-album="{{ latestAlbum.slug }}">
+                        <svg class="btn__icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.14v13.72L19 12 8 5.14z"/></svg>
+                        Слушать сейчас
+                    </button>
+                {% else %}
+                    <a class="btn btn--primary btn--lg" href="{{ path('web_music_catalog') }}">Смотреть альбомы</a>
+                {% endif %}
+                <a class="btn btn--ghost btn--lg" href="{{ path('web_music_catalog') }}">Альбомы</a>
+                <a class="btn btn--ghost btn--lg" href="{{ path('web_about') }}">О проекте</a>
+            </div>
+            <ul class="feature-strip">
+                <li><strong>Музыка длится</strong><span>листаете сайт — альбом играет дальше</span></li>
+                <li><strong>Помнит момент</strong><span>вернулись — тот же трек, то же место</span></li>
+                <li><strong>Ваша сцена</strong><span>плеер можно встроить к себе на сайт</span></li>
+            </ul>
+        </div>
+
+        {% if latestAlbum %}
+            <article class="spotlight">
+                <div class="spotlight__cover">
+                    {% if latestAlbum.coverPath %}
+                        <img src="{{ asset('media/' ~ latestAlbum.coverPath) }}" alt="{{ latestAlbum.title }}">
+                    {% else %}
+                        <div class="album-card__placeholder"></div>
+                    {% endif %}
+                </div>
+                <div class="spotlight__body">
+                    <span class="spotlight__label">Последний релиз</span>
+                    <h2 class="spotlight__title">{{ latestAlbum.title }}</h2>
+                    <p class="spotlight__meta">
+                        {{ latestAlbum.artist.name }}
+                        {% if latestAlbum.releasedAt %} · {{ latestAlbum.releasedAt|date('Y') }}{% endif %}
+                    </p>
+                    <div class="spotlight__actions">
+                        <button type="button" class="btn btn--primary" data-om-play-album="{{ latestAlbum.slug }}">
+                            <svg class="btn__icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.14v13.72L19 12 8 5.14z"/></svg>
+                            Слушать
+                        </button>
+                        <a class="btn btn--ghost" href="{{ path('web_music_album', {slug: latestAlbum.slug}) }}">Подробнее</a>
+                    </div>
+                </div>
+            </article>
+        {% endif %}
+    </div>
+</section>
+
+{% if albums is not empty %}
+<section class="section">
+    <div class="section__head">
+        <h2 class="section__title">Альбомы</h2>
+        {% if hasMoreAlbums %}
+            <a class="section__more" href="{{ path('web_music_catalog') }}">Показать все</a>
+        {% endif %}
+    </div>
+    <div class="album-grid">
+        {% for album in albums %}
+            <a class="album-card" href="{{ path('web_music_album', {slug: album.slug}) }}" data-om-album="{{ album.slug }}">
+                <div class="album-card__cover">
+                    {% if album.coverPath %}
+                        <img src="{{ asset('media/' ~ album.coverPath) }}" alt="{{ album.title }}" loading="lazy">
+                    {% else %}
+                        <div class="album-card__placeholder"></div>
+                    {% endif %}
+                    <span class="album-card__badge">{{ album.type.label }}</span>
+                    <button type="button" class="album-card__play" data-om-play aria-label="Слушать">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3 2.5v11l10-5.5L3 2.5z"/></svg>
+                    </button>
+                </div>
+                <div class="album-card__body">
+                    <h3 class="album-card__title">{{ album.title }}</h3>
+                    <p class="album-card__meta">
+                        {% if album.releasedAt %}{{ album.releasedAt|date('Y') }} · {% endif %}{{ album.artist.name }}
+                    </p>
+                </div>
+            </a>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Альбомы — OmPlayer{% endblock %}
+
+{% block body %}
+<header class="catalog-header">
+    <div>
+        <h1 class="catalog-header__title">Альбомы</h1>
+        <p class="catalog-header__lead">Все релизы — можно искать по названию трека или альбома</p>
+    </div>
+    <div class="catalog-header__search">
+        <form class="search-form" action="{{ path('web_music_catalog') }}" method="get">
+            <input type="search" name="q" value="{{ q|default('') }}" placeholder="Найти альбом или трек…" aria-label="Поиск">
+        </form>
+    </div>
+</header>
+
+<section class="section">
+    <div class="album-grid">
+        {% for album in albums %}
+            <a class="album-card" href="{{ path('web_music_album', {slug: album.slug}) }}" data-om-album="{{ album.slug }}">
+                <div class="album-card__cover">
+                    {% if album.coverPath %}
+                        <img src="{{ asset('media/' ~ album.coverPath) }}" alt="{{ album.title }}" loading="lazy">
+                    {% else %}
+                        <div class="album-card__placeholder"></div>
+                    {% endif %}
+                    <span class="album-card__badge">{{ album.type.label }}</span>
+                    <button type="button" class="album-card__play" data-om-play aria-label="Слушать">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3 2.5v11l10-5.5L3 2.5z"/></svg>
+                    </button>
+                </div>
+                <div class="album-card__body">
+                    <h2 class="album-card__title">{{ album.title }}</h2>
+                    <p class="album-card__meta">
+                        {% if album.releasedAt %}{{ album.releasedAt|date('Y') }} · {% endif %}{{ album.artist.name }}
+                    </p>
+                </div>
+            </a>
+        {% else %}
+            <div class="empty-state">
+                <p class="empty-state__title">Пока нет альбомов</p>
+                <p>Загрузите трек через admin — альбом появится здесь автоматически.</p>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

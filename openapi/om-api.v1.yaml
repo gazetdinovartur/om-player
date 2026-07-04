@@ -1,0 +1,617 @@
+openapi: 3.1.0
+info:
+  title: OmPlayer API
+  description: |
+    REST API v1 для embeddable плеера OmPlayer.
+    Контракт между `@om/player` (Web Component) и Symfony backend.
+  version: 1.0.0
+  contact:
+    name: OmPlayer
+
+servers:
+  - url: https://zhivaya-muzyka.ru/api/v1
+    description: Production
+  - url: http://localhost:8080/api/v1
+    description: Local development
+
+tags:
+  - name: Tracks
+  - name: Albums
+  - name: Playlists
+  - name: Artists
+  - name: Search
+  - name: Analytics
+
+paths:
+  /tracks:
+    get:
+      tags: [Tracks]
+      summary: List published tracks
+      parameters:
+        - name: album
+          in: query
+          schema:
+            type: string
+          description: Filter by album slug
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: perPage
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 50
+      responses:
+        '200':
+          description: Paginated track list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackSummaryCollection'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tracks/{slug}:
+    get:
+      tags: [Tracks]
+      summary: Get track details with stream URL
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Track detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackDetail'
+        '404':
+          description: Track not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /albums:
+    get:
+      tags: [Albums]
+      summary: List published albums
+      responses:
+        '200':
+          description: Album list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AlbumSummary'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /albums/{slug}:
+    get:
+      tags: [Albums]
+      summary: Get album details
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Album detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlbumDetail'
+        '404':
+          description: Album not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /albums/{slug}/tracks:
+    get:
+      tags: [Albums]
+      summary: Get album tracks for queue building
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Album tracks with stream info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlbumTracksResponse'
+        '404':
+          description: Album not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /playlists:
+    get:
+      tags: [Playlists]
+      summary: List public playlists
+      responses:
+        '200':
+          description: Playlist list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaylistSummaryCollection'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /playlists/{slug}:
+    get:
+      tags: [Playlists]
+      summary: Get playlist with tracks
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Playlist detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaylistDetail'
+        '404':
+          description: Playlist not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /artists/{slug}:
+    get:
+      tags: [Artists]
+      summary: Get artist with albums
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Artist detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtistDetail'
+        '404':
+          description: Artist not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /search:
+    get:
+      tags: [Search]
+      summary: Search tracks and albums
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Search query (title, album title)
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /analytics/playback:
+    post:
+      tags: [Analytics]
+      summary: Batch ingest anonymous playback events
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaybackBatchRequest'
+      responses:
+        '202':
+          description: Events accepted
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              example: NOT_FOUND
+            message:
+              type: string
+            details:
+              type: object
+
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        perPage:
+          type: integer
+        totalPages:
+          type: integer
+
+    StreamInfo:
+      type: object
+      required: [url, mimeType]
+      properties:
+        url:
+          type: string
+          format: uri
+        mimeType:
+          type: string
+          example: audio/mpeg
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Null when URLs are permanent (current implementation)
+
+    TrackSummary:
+      type: object
+      required: [slug, title, artistName, durationMs, type]
+      properties:
+        slug:
+          type: string
+        title:
+          type: string
+        artistName:
+          type: string
+        albumSlug:
+          type: string
+          nullable: true
+        albumTitle:
+          type: string
+          nullable: true
+        albumReleasedAt:
+          type: string
+          format: date
+          nullable: true
+          description: Album release date (Y-m-d)
+        durationMs:
+          type: integer
+        type:
+          type: string
+          enum: [studio, live, demo, rehearsal]
+        coverUrl:
+          type: string
+          format: uri
+          nullable: true
+        coverThumbUrl:
+          type: string
+          format: uri
+          nullable: true
+
+    TrackDetail:
+      allOf:
+        - $ref: '#/components/schemas/TrackSummary'
+        - type: object
+          required: [stream]
+          properties:
+            trackNumber:
+              type: integer
+              nullable: true
+            description:
+              type: string
+              nullable: true
+            credits:
+              type: string
+              nullable: true
+            lyrics:
+              type: string
+              nullable: true
+            genre:
+              type: string
+              nullable: true
+            album:
+              type: object
+              nullable: true
+              properties:
+                slug:
+                  type: string
+                title:
+                  type: string
+                releasedAt:
+                  type: string
+                  format: date
+                  nullable: true
+                coverUrl:
+                  type: string
+                  format: uri
+            stream:
+              $ref: '#/components/schemas/StreamInfo'
+            publishedAt:
+              type: string
+              format: date-time
+
+    TrackSummaryCollection:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrackSummary'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    AlbumSummary:
+      type: object
+      required: [slug, title, artistName, type, trackCount]
+      properties:
+        slug:
+          type: string
+        title:
+          type: string
+        artistName:
+          type: string
+        type:
+          type: string
+          enum: [studio, ep, single, live, compilation]
+        typeLabel:
+          type: string
+          description: Localized album type label (Russian)
+        releasedAt:
+          type: string
+          format: date
+          nullable: true
+        coverUrl:
+          type: string
+          format: uri
+          nullable: true
+        coverThumbUrl:
+          type: string
+          format: uri
+          nullable: true
+        trackCount:
+          type: integer
+        totalDurationMs:
+          type: integer
+
+    AlbumDetail:
+      allOf:
+        - $ref: '#/components/schemas/AlbumSummary'
+        - type: object
+          properties:
+            description:
+              type: string
+              nullable: true
+
+    AlbumTrackItem:
+      allOf:
+        - $ref: '#/components/schemas/TrackSummary'
+        - type: object
+          required: [stream]
+          properties:
+            trackNumber:
+              type: integer
+            stream:
+              $ref: '#/components/schemas/StreamInfo'
+
+    AlbumTracksResponse:
+      type: object
+      properties:
+        album:
+          type: object
+          properties:
+            slug:
+              type: string
+            title:
+              type: string
+            artistName:
+              type: string
+            releasedAt:
+              type: string
+              format: date
+              nullable: true
+            coverUrl:
+              type: string
+              format: uri
+              nullable: true
+            coverThumbUrl:
+              type: string
+              format: uri
+              nullable: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AlbumTrackItem'
+
+    PlaylistSummary:
+      type: object
+      required: [slug, title]
+      properties:
+        slug:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        coverUrl:
+          type: string
+          format: uri
+          nullable: true
+        trackCount:
+          type: integer
+
+    PlaylistSummaryCollection:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlaylistSummary'
+
+    PlaylistDetail:
+      type: object
+      required: [slug, title, tracks]
+      properties:
+        slug:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        tracks:
+          type: array
+          items:
+            $ref: '#/components/schemas/AlbumTrackItem'
+
+    ArtistDetail:
+      type: object
+      required: [slug, name]
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+        bio:
+          type: string
+          nullable: true
+        photoUrl:
+          type: string
+          format: uri
+          nullable: true
+        albums:
+          type: array
+          items:
+            $ref: '#/components/schemas/AlbumSummary'
+
+    SearchResponse:
+      type: object
+      properties:
+        tracks:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrackSummary'
+        albums:
+          type: array
+          items:
+            $ref: '#/components/schemas/AlbumSummary'
+
+    PlaybackEvent:
+      type: object
+      required: [type, trackSlug, positionMs, timestamp]
+      properties:
+        type:
+          type: string
+          enum: [play, pause, complete, seek, skip]
+        trackSlug:
+          type: string
+        positionMs:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+
+    PlaybackBatchRequest:
+      type: object
+      required: [sessionId, events]
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlaybackEvent'
