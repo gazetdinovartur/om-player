@@ -3,7 +3,7 @@
 
 # Player
 /player/node_modules/
-
+.idea
 # Backend (see backend/.gitignore for vendor, var, .env)
 /backend/vendor/
 /backend/var/
