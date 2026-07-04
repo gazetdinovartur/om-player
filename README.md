@@ -77,5 +77,3 @@ make docker-up
 - [docs/mobile.md](docs/mobile.md) — mobile UX
 - [docs/backend-integration.md](docs/backend-integration.md) — backend setup
 - [ANNOUNCEMENT.md](ANNOUNCEMENT.md) — launch copy
-
-Проект «Живая Музыка Ом» (Bitrix, бренд) — [`../Живая Музыка Ом`](../Живая%20Музыка%20Ом).
