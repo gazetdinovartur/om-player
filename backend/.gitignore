@@ -9,6 +9,11 @@
 /vendor/
 ###< symfony/framework-bundle ###
 
+# User-uploaded media (keep directory via .gitkeep)
+/public/media/audio/
+/public/media/covers/
+!/public/media/.gitkeep
+
 ###> phpunit/phpunit ###
 /phpunit.xml
 /.phpunit.cache/

@@ -10,6 +10,11 @@
 /backend/.env.local
 /backend/.phpunit.cache/
 
+# Uploaded media (import via app:import-album or admin upload)
+/backend/public/media/audio/
+/backend/public/media/covers/
+!/backend/public/media/.gitkeep
+
 # Keep built assets in repo:
 # /player/dist/
 # /backend/public/build/player/
