@@ -2,6 +2,8 @@
 
 Embeddable music player — Lit Web Component + Symfony backend.
 
+**Автор:** [Артур Лун](https://arturlun.ru) · [Артур Газетдинов](https://arturlun.ru)
+
 ```
 om-player/
 ├── player/      # @om/player — <om-player> Web Component

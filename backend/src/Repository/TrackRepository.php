@@ -65,6 +65,17 @@ class TrackRepository extends ServiceEntityRepository
     }
 
     /** @return Track[] */
+    public function findPublishedOrdered(): array
+    {
+        return $this->createQueryBuilder('t')
+            ->andWhere('t.published = true')
+            ->orderBy('t.trackNumber', 'ASC')
+            ->addOrderBy('t.createdAt', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /** @return Track[] */
     public function searchPublished(string $query): array
     {
         $q = '%'.mb_strtolower(trim($query)).'%';

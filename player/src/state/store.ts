@@ -132,6 +132,10 @@ export class PlayerStore {
       this.persist();
       this.notify();
     });
+    this.engine.onLoadError(() => {
+      this.clearPlaybackIntent();
+      this.notify();
+    });
     this.engine.setMediaHandlers({
       onNext: () => this.next(),
       onPrev: () => this.prev(),
@@ -280,13 +284,19 @@ export class PlayerStore {
     return wasPlaying && document.visibilityState === 'visible';
   }
 
-  playTrack(track: TrackSummary, startMs = 0): void {
-    this.loadTrack(track, startMs, true);
+  playTrack(track: TrackSummary, startMs = 0, force = false): void {
+    this.loadTrack(track, startMs, true, force);
   }
 
-  loadTrack(track: TrackSummary, startMs = 0, autoplay = true): void {
+  loadTrack(track: TrackSummary, startMs = 0, autoplay = true, force = false): void {
     if (autoplay) this.markPlaybackIntent();
-    this.loadTrackInternal(track, startMs, autoplay, false);
+    try {
+      this.loadTrackInternal(track, startMs, autoplay, force);
+    } catch {
+      this.clearPlaybackIntent();
+      this.notify();
+      throw new Error('No stream URL');
+    }
   }
 
   private loadTrackInternal(track: TrackSummary, startMs: number, autoplay: boolean, force: boolean): void {
@@ -330,7 +340,13 @@ export class PlayerStore {
 
     if (autoplay) this.tabs.announcePlayback();
     this.restoringPositionMs = startMs > 0 ? startMs : null;
-    this.engine.load(track, startMs, autoplay, force);
+    try {
+      this.engine.load(track, startMs, autoplay, force);
+    } catch {
+      this.clearPlaybackIntent();
+      this.notify();
+      throw new Error('No stream URL');
+    }
     this.emit(autoplay ? 'om:play' : 'om:session-restore', track);
     this.notify();
   }

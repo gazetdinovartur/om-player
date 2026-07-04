@@ -6,12 +6,15 @@ namespace App\Api;
 
 use App\Entity\Album;
 use App\Entity\Track;
+use App\Service\MediaPathResolver;
 use App\Service\MediaUrlGenerator;
 
 final class TrackApiSerializer
 {
-    public function __construct(private readonly MediaUrlGenerator $mediaUrlGenerator)
-    {
+    public function __construct(
+        private readonly MediaUrlGenerator $mediaUrlGenerator,
+        private readonly MediaPathResolver $mediaPaths,
+    ) {
     }
 
     /** @return array<string, mixed> */
@@ -58,7 +61,10 @@ final class TrackApiSerializer
     /** @return array{url: ?string, mimeType: string, expiresAt: ?string} */
     public function stream(Track $track): array
     {
-        $url = $this->mediaUrlGenerator->streamUrl($track->getAudioPath());
+        $audioPath = $track->getAudioPath();
+        $url = $this->mediaPaths->audioExists($audioPath)
+            ? $this->mediaUrlGenerator->streamUrl($audioPath)
+            : null;
         $expiresAt = null;
         if ($url !== null && str_contains($url, 'exp=')) {
             $queryString = parse_url($url, PHP_URL_QUERY);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Web;
 
+use App\Service\MediaPathResolver;
 use App\Service\StreamTokenService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -12,6 +13,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\Mime\MimeTypes;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
@@ -21,9 +23,8 @@ use Symfony\Component\Routing\Attribute\Route;
 final class MediaStreamController extends AbstractController
 {
     public function __construct(
-        #[Autowire('%kernel.project_dir%')]
-        private readonly string $projectDir,
         private readonly StreamTokenService $streamTokens,
+        private readonly MediaPathResolver $mediaPaths,
     ) {
     }
 
@@ -41,7 +42,7 @@ final class MediaStreamController extends AbstractController
             throw new AccessDeniedHttpException('Direct download is not allowed.');
         }
 
-        $filePath = $this->projectDir.'/public/media/audio/'.$path;
+        $filePath = $this->mediaPaths->audioAbsolutePath('audio/'.$path);
         if (!is_file($filePath)) {
             throw new NotFoundHttpException();
         }
@@ -50,6 +51,8 @@ final class MediaStreamController extends AbstractController
         $response->setPrivate();
         $response->setAutoEtag();
         $response->setAutoLastModified();
+        $mimeType = MimeTypes::getDefault()->guessMimeType($filePath) ?? 'application/octet-stream';
+        $response->headers->set('Content-Type', $mimeType);
         $response->headers->set('Accept-Ranges', 'bytes');
         $response->headers->set('Content-Disposition', 'inline');
         $response->headers->set('X-Content-Type-Options', 'nosniff');

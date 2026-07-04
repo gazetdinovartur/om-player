@@ -1,0 +1,42 @@
+<footer class="site-footer">
+    <div class="site-footer__top">
+        <div class="site-footer__sigil" aria-hidden="true">
+            <span class="site-footer__sigil-icon site-footer__sigil-icon--sun">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="5.5" fill="currentColor" opacity="0.88"/>
+                    <circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1" opacity="0.38"/>
+                </svg>
+            </span>
+            <span class="site-footer__sigil-icon site-footer__sigil-icon--moon">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1" opacity="0.38"/>
+                    <mask id="omFooterMoonMask" maskUnits="userSpaceOnUse">
+                        <rect width="24" height="24" fill="white"/>
+                        <circle cx="8.65" cy="12" r="5.15" fill="black"/>
+                    </mask>
+                    <circle cx="12" cy="12" r="5.5" fill="currentColor" opacity="0.88" mask="url(#omFooterMoonMask)"/>
+                </svg>
+            </span>
+        </div>
+
+        <p class="site-footer__credits">
+            <span class="site-footer__credits-name-slot">
+                <a href="https://arturlun.ru" target="_blank" rel="noopener noreferrer" class="site-footer__credits-name site-footer__credits-name--sun">Артур Газетдинов</a>
+                <a href="https://arturlun.ru" target="_blank" rel="noopener noreferrer" class="site-footer__credits-name site-footer__credits-name--moon">Артур Лун</a>
+            </span>
+            <span class="site-footer__credits-role">автор проекта</span>
+        </p>
+    </div>
+
+    <div class="site-footer__rule" aria-hidden="true"></div>
+
+    <div class="site-footer__nav-wrap">
+        <nav class="site-footer__nav" aria-label="Подвал">
+            <ul class="site-footer__nav-list">
+                <li><a href="{{ path('web_about') }}">О проекте</a></li>
+                <li><a href="{{ path('web_music_catalog') }}">Альбомы</a></li>
+                <li><a href="{{ path('web_music_playlists') }}">Плейлисты</a></li>
+            </ul>
+        </nav>
+    </div>
+</footer>

@@ -83,6 +83,8 @@
         {% block body %}{% endblock %}
     </main>
 
+    {% include 'partials/footer.html.twig' %}
+
     <div class="mini-player-shell" id="om-persistent-player" data-turbo-permanent>
         <audio
             id="om-audio-engine"

@@ -5,13 +5,17 @@ declare(strict_types=1);
 namespace App\Service;
 
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 final class MediaUrlGenerator
 {
     public function __construct(
         private readonly StreamTokenService $streamTokens,
+        private readonly RequestStack $requestStack,
         #[Autowire('%env(default::MEDIA_BASE_URL)%')]
         private readonly ?string $mediaBaseUrl = '',
+        #[Autowire('%env(default::DEFAULT_URI)%')]
+        private readonly ?string $defaultUri = '',
     ) {
     }
 
@@ -27,11 +31,7 @@ final class MediaUrlGenerator
 
         $relative = '/media/'.ltrim($path, '/');
 
-        if ($this->mediaBaseUrl !== null && $this->mediaBaseUrl !== '') {
-            return rtrim($this->mediaBaseUrl, '/').$relative;
-        }
-
-        return $relative;
+        return $this->absolute($relative);
     }
 
     public function streamUrl(?string $audioStoragePath): ?string
@@ -42,10 +42,24 @@ final class MediaUrlGenerator
 
         $signed = $this->streamTokens->signUrl($audioStoragePath);
 
+        return $this->absolute($signed);
+    }
+
+    private function absolute(string $path): string
+    {
         if ($this->mediaBaseUrl !== null && $this->mediaBaseUrl !== '') {
-            return rtrim($this->mediaBaseUrl, '/').$signed;
+            return rtrim($this->mediaBaseUrl, '/').$path;
         }
 
-        return $signed;
+        $request = $this->requestStack->getCurrentRequest();
+        if ($request !== null) {
+            return $request->getSchemeAndHttpHost().$path;
+        }
+
+        if ($this->defaultUri !== null && $this->defaultUri !== '') {
+            return rtrim($this->defaultUri, '/').$path;
+        }
+
+        return $path;
     }
 }

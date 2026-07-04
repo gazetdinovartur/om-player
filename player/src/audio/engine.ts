@@ -29,6 +29,14 @@ export class AudioEngine {
   private suppressSpuriousPause = false;
   private onSpuriousPauseFn: (() => void) | null = null;
   private onPlaybackStartedFn: (() => void) | null = null;
+  private onLoadErrorFn: ((message: string) => void) | null = null;
+
+  private safePlay(audio: HTMLAudioElement): Promise<void> {
+    return audio.play().catch((err: unknown) => {
+      console.error('OmPlayer: play failed', err);
+      throw err;
+    });
+  }
 
   private runIntentionalPause(action: () => void): void {
     this.suppressSpuriousPause = true;
@@ -76,8 +84,7 @@ export class AudioEngine {
       return false;
     }
 
-    void audio
-      .play()
+    void this.safePlay(audio)
       .then(() => {
         this.ensurePlaybackRunning();
       })
@@ -123,7 +130,7 @@ export class AudioEngine {
         this.onTick?.(this.getPositionMs());
       }
       if (autoplay && audio.paused) {
-        void audio.play().catch(() => {});
+        void this.safePlay(audio).catch(() => {});
       }
       this.finishLoadReady();
       return;
@@ -155,7 +162,9 @@ export class AudioEngine {
         if (finished) return;
         finished = true;
         if (autoplay) {
-          void audio.play().catch(() => {});
+          void this.safePlay(audio).catch(() => {
+            this.onLoadErrorFn?.('Не удалось воспроизвести файл');
+          });
         } else {
           this.onTick?.(this.getPositionMs());
         }
@@ -184,7 +193,7 @@ export class AudioEngine {
     audio: HTMLAudioElement,
     startMs: number,
   ): boolean {
-    if (!audio.src || audio.ended) return false;
+    if (!audio.src || audio.ended || audio.error) return false;
     if (this.track?.slug !== track.slug) return false;
     if (startMs > 0 && Math.abs(this.getPositionMs() - startMs) > 500) return false;
     if (this.sameStreamUrl(audio.src, url)) return true;
@@ -257,7 +266,8 @@ export class AudioEngine {
       }
     });
     el.addEventListener('error', () => {
-      console.error('OmPlayer: audio error', el.src);
+      console.error('OmPlayer: audio error', el.src, el.error);
+      this.onLoadErrorFn?.('Аудиофайл недоступен');
       this.finishLoadReady();
     });
   }
@@ -322,8 +332,7 @@ export class AudioEngine {
     if (!audio?.src || audio.ended) return false;
     if (!audio.paused) return true;
 
-    void audio
-      .play()
+    void this.safePlay(audio)
       .then(() => {
         this.ensurePlaybackRunning();
       })
@@ -368,7 +377,7 @@ export class AudioEngine {
     if (!audio?.src) return false;
     if (!audio.paused) return true;
     try {
-      await audio.play();
+      await this.safePlay(audio);
       return true;
     } catch {
       return false;
@@ -392,7 +401,7 @@ export class AudioEngine {
       });
       return false;
     }
-    void audio.play();
+    void this.safePlay(audio).catch(() => {});
     return true;
   }
 
@@ -494,6 +503,15 @@ export class AudioEngine {
 
   onFinished(fn: () => void): void {
     this.onEnd = fn;
+  }
+
+  onLoadError(fn: (message: string) => void): void {
+    this.onLoadErrorFn = fn;
+  }
+
+  hasPlayableSource(): boolean {
+    const audio = this.peekAudioElement();
+    return !!(audio?.src && !audio.error && audio.readyState >= HTMLMediaElement.HAVE_METADATA);
   }
 
   setMediaHandlers(handlers: MediaHandlers): void {

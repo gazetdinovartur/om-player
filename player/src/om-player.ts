@@ -1,5 +1,6 @@
 import { html, LitElement, nothing, unsafeCSS } from 'lit';
 import { OmApiClient } from './api/client';
+import { withAbsoluteStream } from './api/resolve-url';
 import type { TrackSummary } from './api/types';
 import {
   iconHeart,
@@ -99,7 +100,7 @@ export class OmPlayer extends LitElement {
     this.client = new OmApiClient(this.apiBase);
     this.unsub = this.store.subscribe(() => {
       if (!this.isConnected) return;
-      if (this.mode === 'mini' && this.store.getCurrentTrack()) {
+      if (this.mode === 'mini' && (this.store.getCurrentTrack() || this.hasLiveAudio())) {
         this.visible = true;
       }
       if (!this.seeking) {
@@ -107,6 +108,12 @@ export class OmPlayer extends LitElement {
       }
     });
     this.unsubFav = this.favorites.subscribe(() => {
+      this.scheduleUiUpdate();
+    });
+    this.store.engine.onLoadError((message) => {
+      if (!this.isConnected) return;
+      this.error = message;
+      this.loading = false;
       this.scheduleUiUpdate();
     });
     if (this.mode === 'mini') {
@@ -224,7 +231,11 @@ export class OmPlayer extends LitElement {
 
       const duration = this.resolveScrubDurationMs();
       if (duration > 0) {
-        this.syncProgressDom(this.store.getPositionMs(), duration);
+        if (this.seeking) {
+          this.syncProgressDom(this.scrubMs, duration);
+        } else {
+          this.scheduleUiUpdate();
+        }
       }
     }, 250);
   }
@@ -258,12 +269,12 @@ export class OmPlayer extends LitElement {
     if (!this.client || !this.queueNeedsStreams(tracks)) return tracks;
     if (this.album) {
       const { data } = await this.client.getAlbumTracks(this.album);
-      return this.mergeQueueStreams(data, tracks);
+      return this.mergeQueueStreams(data, tracks).map((t) => withAbsoluteStream(this.apiBase, t));
     }
     return Promise.all(
       tracks.map(async (track) => {
-        if (track.stream?.url) return track;
-        return this.client!.getTrack(track.slug);
+        if (track.stream?.url) return withAbsoluteStream(this.apiBase, track);
+        return withAbsoluteStream(this.apiBase, await this.client!.getTrack(track.slug));
       }),
     );
   }
@@ -294,7 +305,13 @@ export class OmPlayer extends LitElement {
     this.loading = true;
     this.error = '';
     try {
-      const detail = await this.client.getTrack(this.track);
+      const detail = withAbsoluteStream(this.apiBase, await this.client.getTrack(this.track));
+      if (!detail.stream?.url) {
+        if (!this.isConnected) return;
+        this.previewTrack = null;
+        this.error = 'Аудиофайл недоступен на сервере';
+        return;
+      }
       this.previewTrack = detail;
       this.albumCover = detail.coverThumbUrl ?? detail.coverUrl ?? '';
       this.requestUpdate();
@@ -383,6 +400,9 @@ export class OmPlayer extends LitElement {
   }
 
   private canScrub(): boolean {
+    if (this.mode === 'embed') {
+      return this.hasLiveAudio() && this.resolveScrubDurationMs() > 0;
+    }
     return !!this.store.getCurrentTrack() && this.resolveScrubDurationMs() > 0;
   }
 
@@ -429,11 +449,8 @@ export class OmPlayer extends LitElement {
     if (!track) return;
     const fill = track.querySelector('.progress-fill') as HTMLElement | null;
     const thumb = track.querySelector('.progress-thumb') as HTMLElement | null;
-    const times = track.closest('.progress-wrap')?.querySelectorAll('.time');
     if (fill) fill.style.width = `${pct}%`;
     if (thumb) thumb.style.left = `${pct}%`;
-    if (times && times.length > 0) times[0].textContent = formatMs(ms);
-    if (times && times.length > 1) times[1].textContent = formatMs(durationMs);
   }
 
   private onProgressPointerDown(e: PointerEvent): void {
@@ -448,11 +465,13 @@ export class OmPlayer extends LitElement {
     this.seeking = true;
     this.scrubMs = this.seekFromPointer(e, durationMs);
     this.syncProgressDom(this.scrubMs, durationMs);
+    this.requestUpdate();
 
     const onMove = (ev: PointerEvent): void => {
       if (!this.seeking) return;
       this.scrubMs = this.seekFromPointer(ev, durationMs);
       this.syncProgressDom(this.scrubMs, durationMs);
+      this.requestUpdate();
     };
 
     const onUp = (ev: PointerEvent): void => {
@@ -577,12 +596,14 @@ export class OmPlayer extends LitElement {
     this.loading = true;
     this.error = '';
     try {
-      const detail =
-        this.previewTrack?.slug === slug && this.previewTrack.stream?.url
-          ? this.previewTrack
-          : await this.client.getTrack(slug);
+      const detail = withAbsoluteStream(this.apiBase, await this.client.getTrack(slug));
+      if (!detail.stream?.url) {
+        if (this.isConnected) this.error = 'Аудиофайл недоступен на сервере';
+        return;
+      }
+      const forceReload = this.mode === 'embed' || !!this.store.engine.peekAudioElement()?.error;
       if (this.mode === 'embed') this.previewTrack = detail;
-      this.store.playTrack(detail, startMs);
+      this.store.playTrack(detail, startMs, forceReload || this.mode === 'embed');
       this.visible = true;
       this.dispatchEvent(new CustomEvent('om:play', { bubbles: true, composed: true, detail: { track: detail } }));
     } catch {
@@ -638,7 +659,7 @@ export class OmPlayer extends LitElement {
     if (this.loading || e.button !== 0) return;
 
     if (this.mode === 'embed') {
-      if (this.current?.slug === this.track) {
+      if (this.isEmbedPlaying()) {
         this.trySyncPlayPause();
       }
       return;
@@ -654,8 +675,9 @@ export class OmPlayer extends LitElement {
     if (this.loading) return;
 
     if (this.mode === 'embed') {
-      if (this.current?.slug === this.track) {
+      if (this.isEmbedPlaying()) {
         e.preventDefault();
+        this.store.toggleFromUserGesture();
         return;
       }
       if (this.track) void this.playSlug(this.track);
@@ -685,7 +707,7 @@ export class OmPlayer extends LitElement {
       this.store.toggleFromUserGesture();
       return true;
     }
-    if (this.store.getCurrentTrack() && this.store.engine.getAudioElement()?.src) {
+    if (this.store.getCurrentTrack() && this.store.engine.hasPlayableSource()) {
       this.store.toggleFromUserGesture();
       return true;
     }
@@ -702,6 +724,31 @@ export class OmPlayer extends LitElement {
 
   private repeatIcon(mode: RepeatMode): unknown {
     return mode === 'one' ? iconRepeatOne : iconRepeat;
+  }
+
+  private repeatAriaLabel(): string {
+    if (this.store.repeat === 'one') return 'Повтор одного трека';
+    if (this.store.repeat === 'all') return 'Повтор всего';
+    return 'Повтор выключен';
+  }
+
+  private renderMiniOptions(): unknown {
+    return html`
+      <div class="mini-options">
+        <button
+          class="btn${this.store.shuffle ? ' is-active' : ''}"
+          @click=${() => this.store.toggleShuffle()}
+          aria-label="Случайный порядок"
+          title="Случайный порядок"
+        >${iconShuffle}</button>
+        <button
+          class="btn${this.store.repeat !== 'off' ? ' is-active' : ''}"
+          @click=${() => this.store.cycleRepeat()}
+          aria-label=${this.repeatAriaLabel()}
+          title=${this.repeatAriaLabel()}
+        >${this.repeatIcon(this.store.repeat)}</button>
+      </div>
+    `;
   }
 
   render() {
@@ -760,11 +807,11 @@ export class OmPlayer extends LitElement {
                 </div>
               </div>
               <div class="controls controls--center">
-                <button class="btn${this.store.shuffle ? ' is-active' : ''}" @click=${() => this.store.toggleShuffle()} aria-label="Случайный порядок">${iconShuffle}</button>
+                <button class="btn${this.store.shuffle ? ' is-active' : ''}" @click=${() => this.store.toggleShuffle()} aria-label="Случайный порядок" title="Случайный порядок">${iconShuffle}</button>
                 <button class="btn" @click=${() => this.store.prev()} aria-label="Предыдущий">${iconPrev}</button>
                 ${this.renderPlayButton('lg')}
                 <button class="btn" @click=${() => this.store.next()} aria-label="Следующий">${iconNext}</button>
-                <button class="btn${this.store.repeat !== 'off' ? ' is-active' : ''}" @click=${() => this.store.cycleRepeat()} aria-label="Повтор">${this.repeatIcon(this.store.repeat)}</button>
+                <button class="btn${this.store.repeat !== 'off' ? ' is-active' : ''}" @click=${() => this.store.cycleRepeat()} aria-label=${this.repeatAriaLabel()} title=${this.repeatAriaLabel()}>${this.repeatIcon(this.store.repeat)}</button>
               </div>
               ${this.current ? this.renderProgress(duration) : nothing}
               ${idle && this.album
@@ -814,6 +861,7 @@ export class OmPlayer extends LitElement {
             ${this.renderPlayButton('md')}
             <button class="btn" @click=${() => this.store.next()} aria-label="Следующий">${iconNext}</button>
           </div>
+          ${this.renderMiniOptions()}
           <label class="volume-wrap" aria-label="Громкость">
             ${iconVolume}
             <input
@@ -865,7 +913,7 @@ export class OmPlayer extends LitElement {
     this.loading = true;
     this.error = '';
     try {
-      const detail = await this.client.getTrack(slug);
+      const detail = withAbsoluteStream(this.apiBase, await this.client.getTrack(slug));
       this.store.loadTrack(detail, positionMs, autoplay);
       this.visible = true;
       await this.store.waitUntilReady();
