@@ -1,0 +1,20 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Страница не найдена — OmPlayer{% endblock %}
+
+{% block body %}
+<section class="section" style="min-height: 50vh; display: grid; place-items: center; text-align: center; padding: 3rem 1rem;">
+    <div class="empty-state" style="max-width: 420px;">
+        <p class="empty-state__title" style="font-size: 4rem; line-height: 1; margin-bottom: .5rem; font-weight: 700; color: var(--accent, #4a7c59);">404</p>
+        <h1 class="empty-state__title">Страница не найдена</h1>
+        <p style="margin: 1rem 0 1.5rem; color: var(--text-muted, #7a7268);">
+            Такого адреса нет — возможно, альбом удалён или ссылка устарела.
+        </p>
+        <div style="display: flex; gap: .75rem; justify-content: center; flex-wrap: wrap;">
+            <a class="btn btn--primary" href="{{ path('web_home') }}">На главную</a>
+            <a class="btn btn--ghost" href="{{ path('web_music_catalog') }}">Альбомы</a>
+            <a class="btn btn--ghost" href="{{ path('web_music_playlists') }}">Плейлисты</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

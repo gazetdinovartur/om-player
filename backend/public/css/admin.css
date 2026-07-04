@@ -224,7 +224,7 @@
     transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
 }
 
-.ea .btn-primary:hover {
+.ea .btn-primary:hover:not(:disabled):not(.accordion-button) {
     transform: translateY(-1px);
 }
 
@@ -251,53 +251,33 @@
 }
 
 .admin-home__cards {
-    --admin-card-w: calc((100% - 2 * 1rem) / 3);
-    margin-top: 1rem;
-}
-
-.admin-home__row--top {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 1rem;
-}
-
-.admin-home__row--bottom {
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
     margin-top: 1rem;
 }
 
-.admin-home__row--bottom .admin-home__card {
-    flex: 0 0 var(--admin-card-w);
-    width: var(--admin-card-w);
-    max-width: var(--admin-card-w);
+.admin-home__card--featured {
+    grid-column: 1 / -1;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 900px) {
     .admin-home__cards {
-        --admin-card-w: 100%;
+        grid-template-columns: repeat(2, 1fr);
     }
+}
 
-    .admin-home__row--top {
+@media (max-width: 560px) {
+    .admin-home__cards {
         grid-template-columns: 1fr;
-    }
-
-    .admin-home__row--bottom {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .admin-home__row--bottom .admin-home__card {
-        flex: 1 1 auto;
-        max-width: none;
     }
 }
 
 .admin-home__card {
     display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 1rem;
     padding: 1.35rem 1.25rem;
     border-radius: var(--om-radius-lg);
     border: 1px solid var(--content-section-border-color);
@@ -417,4 +397,203 @@
 .ea .main-content,
 .ea .content-wrapper {
     padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+}
+
+/* Playlist tracks collection (nested «Новый трек» rows) */
+.ea .form-group.field-collection {
+    max-width: none;
+}
+
+.ea .form-group.field-collection .accordion,
+.ea .form-group.field-collection .accordion-item,
+.ea .form-group.field-collection .accordion-body,
+.ea .form-group.field-collection .field-collection-item,
+.ea .form-group.field-collection .form-widget {
+    overflow: visible;
+}
+
+.ea .form-group.field-collection .accordion-header {
+    background: color-mix(in srgb, var(--content-bg) 94%, var(--om-accent-soft));
+    transition: background-color 0.15s ease;
+}
+
+.ea .form-group.field-collection .accordion-header:hover {
+    background: var(--om-accent-soft);
+    box-shadow: none;
+}
+
+.ea .form-group.field-collection .accordion-header:has(.accordion-button:not(.collapsed)) {
+    background: var(--om-accent-soft);
+}
+
+.ea .form-group.field-collection .accordion-button,
+.ea .form-group.field-collection .accordion-button:hover,
+.ea .form-group.field-collection .accordion-button:focus,
+.ea .form-group.field-collection .accordion-button:not(.collapsed) {
+    background: transparent;
+    box-shadow: none;
+    transform: none;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    padding: 0.625rem 0.75rem;
+}
+
+.ea .form-group.field-collection .accordion-item {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    margin-bottom: 0;
+    overflow: visible;
+}
+
+.ea .form-group.field-collection .accordion-body {
+    padding: 0.75rem 0.875rem 0.5rem;
+}
+
+.ea .form-group.field-collection .accordion-item .form-group {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0.625rem 0;
+}
+
+.ea .form-group.field-collection .accordion-item .form-group > label,
+.ea .form-group.field-collection .accordion-item .form-group legend.col-form-label {
+    inline-size: auto;
+    width: 100%;
+    margin: 0 0 0.35rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--om-text-muted);
+}
+
+.ea .form-group.field-collection .accordion-item .accordion-body .form-widget,
+.ea .form-group.field-collection .accordion-item .accordion-body .form-widget .row {
+    width: 100%;
+    max-width: none;
+}
+
+.ea .form-group.field-collection .field-collection-item {
+    position: relative;
+    z-index: 1;
+}
+
+.ea .form-group.field-collection .field-collection-item:focus-within {
+    z-index: 5;
+}
+
+.ea .form-group.field-collection .ts-wrapper,
+.ea .form-group.field-collection .ts-control {
+    width: 100%;
+    max-width: none;
+}
+
+.ea .form-group.field-collection .ts-dropdown {
+    z-index: 2000;
+}
+
+.ea .form-group.field-collection .field-collection-add-button {
+    margin-top: 0.75rem;
+}
+
+.ea .form-group.field-collection .field-collection-add-button .btn {
+    border-radius: 999px;
+    font-weight: 600;
+}
+
+.ea .form-group.field-collection .field-collection-add-button .btn:hover {
+    transform: none;
+}
+
+.ea-edit-Playlist .content-body,
+.ea-new-Playlist .content-body,
+.ea-edit-Playlist .form-panel,
+.ea-new-Playlist .form-panel {
+    overflow: visible;
+}
+
+/* Track CRUD forms */
+.ea-new-Track .content-body,
+.ea-edit-Track .content-body {
+    max-width: 920px;
+}
+
+.ea-new-Track form .row,
+.ea-edit-Track form .row {
+    --bs-gutter-x: 1rem;
+    --bs-gutter-y: 0.25rem;
+}
+
+.ea-new-Track .field-group,
+.ea-edit-Track .field-group,
+.ea-new-Track .field-form_group,
+.ea-edit-Track .field-form_group {
+    margin-bottom: 1rem;
+}
+
+.ea-new-Track .form-check,
+.ea-edit-Track .form-check {
+    padding-top: 0.35rem;
+}
+
+.ea-new-Track textarea.form-control,
+.ea-edit-Track textarea.form-control {
+    min-height: 7rem;
+    resize: vertical;
+}
+
+.track-crud-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.875rem;
+    padding: 1rem 1.125rem;
+    margin-bottom: 1.25rem;
+    border-radius: var(--om-radius-lg);
+    border: 1px solid rgba(74, 124, 89, 0.22);
+    background: linear-gradient(135deg, var(--om-accent-soft), transparent 72%);
+}
+
+.ea-dark-scheme .track-crud-hint {
+    border-color: rgba(107, 155, 122, 0.28);
+}
+
+.track-crud-hint__icon {
+    flex-shrink: 0;
+    color: var(--om-accent);
+    margin-top: 0.125rem;
+}
+
+.track-crud-hint__title {
+    margin: 0 0 0.25rem;
+    font-weight: 600;
+    font-size: 0.9375rem;
+}
+
+.track-crud-hint__text {
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.55;
+    color: var(--om-text-muted);
+}
+
+.track-crud-hint__text a {
+    color: var(--om-accent);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.track-crud-hint__text a:hover {
+    text-decoration: underline;
+}
+
+/* Track index */
+.ea-index-Track .datagrid {
+    border-radius: var(--om-radius-lg);
+    overflow: hidden;
+}
+
+.ea-index-Track .datagrid td,
+.ea-index-Track .datagrid th {
+    vertical-align: middle;
 }

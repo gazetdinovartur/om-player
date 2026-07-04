@@ -9,6 +9,7 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 final class MediaUrlGenerator
 {
     public function __construct(
+        private readonly StreamTokenService $streamTokens,
         #[Autowire('%env(default::MEDIA_BASE_URL)%')]
         private readonly ?string $mediaBaseUrl = '',
     ) {
@@ -31,5 +32,20 @@ final class MediaUrlGenerator
         }
 
         return $relative;
+    }
+
+    public function streamUrl(?string $audioStoragePath): ?string
+    {
+        if ($audioStoragePath === null || $audioStoragePath === '') {
+            return null;
+        }
+
+        $signed = $this->streamTokens->signUrl($audioStoragePath);
+
+        if ($this->mediaBaseUrl !== null && $this->mediaBaseUrl !== '') {
+            return rtrim($this->mediaBaseUrl, '/').$signed;
+        }
+
+        return $signed;
     }
 }

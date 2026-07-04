@@ -1,0 +1,8 @@
+{% extends '@!EasyAdmin/crud/new.html.twig' %}
+
+{% block new_form %}
+    {% if entity.name == 'Track' %}
+        {{ include('admin/crud/_track_form_hint.html.twig') }}
+    {% endif %}
+    {{ parent() }}
+{% endblock %}

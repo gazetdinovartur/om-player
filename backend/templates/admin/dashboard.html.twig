@@ -9,27 +9,26 @@
         настраивайте альбомы и плейлисты для сайта и плеера.
     </p>
 
-    <a class="admin-home__card admin-home__card--featured" href="{{ path('admin_upload_track') }}">
-        <span class="admin-home__card-icon" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path d="M12 16V8m0 0l-3 3m3-3l3 3" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
-            </svg>
-        </span>
-        <span class="admin-home__card-body">
-            <span class="admin-home__card-title">Загрузить трек</span>
-            <span class="admin-home__card-desc">Перетащите MP3 или M4A — метаданные и обложка подтянутся автоматически</span>
-        </span>
-        <span class="admin-home__card-arrow" aria-hidden="true">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path d="M7.5 5l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-        </span>
-    </a>
-
     <div class="admin-home__cards">
-        <div class="admin-home__row admin-home__row--top">
-            <a class="admin-home__card" href="{{ path('admin_album_index') }}">
+        <a class="admin-home__card admin-home__card--featured" href="{{ path('admin_upload_track') }}">
+            <span class="admin-home__card-icon" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 16V8m0 0l-3 3m3-3l3 3" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
+                </svg>
+            </span>
+            <span class="admin-home__card-body">
+                <span class="admin-home__card-title">Загрузить трек</span>
+                <span class="admin-home__card-desc">Перетащите MP3 или M4A — метаданные и обложка подтянутся автоматически</span>
+            </span>
+            <span class="admin-home__card-arrow" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <path d="M7.5 5l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </span>
+        </a>
+
+        <a class="admin-home__card" href="{{ path('admin_album_index') }}">
             <span class="admin-home__card-icon" aria-hidden="true">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
                     <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/>
@@ -65,13 +64,23 @@
             </span>
             <span class="admin-home__card-body">
                 <span class="admin-home__card-title">Плейлисты</span>
-                <span class="admin-home__card-desc">Подборки для сайта и API</span>
+                <span class="admin-home__card-desc">Подборки и порядок треков</span>
             </span>
         </a>
-        </div>
 
-        <div class="admin-home__row admin-home__row--bottom">
-            <a class="admin-home__card" href="{{ path('admin_artist_index') }}">
+        <a class="admin-home__card" href="{{ path('admin_analytics') }}">
+            <span class="admin-home__card-icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                    <path d="M4 19V5M4 19h16M8 17V11M12 17V7M16 17v-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </span>
+            <span class="admin-home__card-body">
+                <span class="admin-home__card-title">Аналитика</span>
+                <span class="admin-home__card-desc">Воспроизведения, сессии, топ треков</span>
+            </span>
+        </a>
+
+        <a class="admin-home__card" href="{{ path('admin_artist_index') }}">
             <span class="admin-home__card-icon" aria-hidden="true">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
                     <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.5"/>
@@ -92,10 +101,9 @@
             </span>
             <span class="admin-home__card-body">
                 <span class="admin-home__card-title">Открыть сайт</span>
-                <span class="admin-home__card-desc">Посмотреть, как выглядит каталог для слушателей</span>
+                <span class="admin-home__card-desc">Как выглядит каталог для слушателей</span>
             </span>
         </a>
-        </div>
     </div>
 </div>
 {% endblock %}

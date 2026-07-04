@@ -617,6 +617,23 @@ export class OmPlayer extends LitElement {
     }
   }
 
+  private async playPlaylist(slug: string): Promise<void> {
+    if (!this.client) return;
+
+    this.loading = true;
+    try {
+      const { tracks } = await this.client.getPlaylistTracks(slug);
+      if (tracks.length) {
+        this.store.setQueue(tracks, 0, 0, true, true);
+        this.visible = true;
+      }
+    } catch {
+      this.error = 'Плейлист недоступен';
+    } finally {
+      if (this.isConnected) this.loading = false;
+    }
+  }
+
   private onPlayPointerDown = (e: PointerEvent): void => {
     if (this.loading || e.button !== 0) return;
 
@@ -817,6 +834,11 @@ export class OmPlayer extends LitElement {
   async playAlbumPublic(slug: string): Promise<void> {
     this.visible = true;
     await this.playAlbum(slug);
+  }
+
+  async playPlaylistPublic(slug: string): Promise<void> {
+    this.visible = true;
+    await this.playPlaylist(slug);
   }
 
   async restoreQueuePublic(albumSlug: string, trackSlug: string, queueSlugs: string[], queueIndex: number, positionMs: number, autoplay = true): Promise<void> {

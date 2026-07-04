@@ -75,6 +75,18 @@
         if (slug) getGlobalPlayer()?.playAlbumPublic?.(slug);
       });
     });
+
+    document.querySelectorAll('[data-om-play-playlist]').forEach((btn) => {
+      if (btn.dataset.omBoundPlaylist) return;
+      btn.dataset.omBoundPlaylist = '1';
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const slug = btn.getAttribute('data-om-play-playlist')
+          || btn.closest('[data-om-playlist]')?.getAttribute('data-om-playlist');
+        if (slug) getGlobalPlayer()?.playPlaylistPublic?.(slug);
+      });
+    });
   }
 
   let mediaKeysBound = false;

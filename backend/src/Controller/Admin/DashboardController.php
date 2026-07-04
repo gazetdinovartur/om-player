@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
+use App\Enum\PlaybackEventType;
+use App\Repository\PlaybackEventRepository;
+use App\Repository\TrackRepository;
 use App\Service\TrackUploadHandler;
+use App\Service\UploadFileValidator;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminDashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminRoute;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
@@ -21,13 +25,48 @@ use Symfony\Component\HttpFoundation\Response;
 #[AdminDashboard(routePath: '/admin', routeName: 'admin')]
 class DashboardController extends AbstractDashboardController
 {
-    public function __construct(private readonly TrackUploadHandler $trackUploadHandler)
-    {
+    public function __construct(
+        private readonly TrackUploadHandler $trackUploadHandler,
+        private readonly UploadFileValidator $uploadFileValidator,
+    ) {
     }
 
     public function index(): Response
     {
         return $this->render('admin/dashboard.html.twig');
+    }
+
+    #[AdminRoute(path: '/analytics', name: 'analytics')]
+    public function analytics(
+        PlaybackEventRepository $events,
+        TrackRepository $tracks,
+    ): Response {
+        $since7 = new \DateTimeImmutable('-7 days');
+        $since30 = new \DateTimeImmutable('-30 days');
+
+        $topRaw = $events->topTracksByPlays(10, $since30);
+        $topTracks = [];
+        foreach ($topRaw as $row) {
+            $track = $tracks->findOneBySlug($row['slug']);
+            $topTracks[] = [
+                'slug' => $row['slug'],
+                'title' => $track?->getTitle() ?? $row['slug'],
+                'count' => $row['count'],
+            ];
+        }
+
+        $daily = $events->dailyPlayCounts(14);
+        $maxDaily = $daily !== [] ? max($daily) : 1;
+
+        return $this->render('admin/analytics.html.twig', [
+            'plays7' => $events->countByTypeSince(PlaybackEventType::PLAY, $since7),
+            'plays30' => $events->countByTypeSince(PlaybackEventType::PLAY, $since30),
+            'events7' => $events->countSince($since7),
+            'sessions7' => $events->countUniqueSessionsSince($since7),
+            'topTracks' => $topTracks,
+            'daily' => $daily,
+            'maxDaily' => $maxDaily,
+        ]);
     }
 
     #[AdminRoute(path: '/upload-track', name: 'upload_track', options: ['methods' => ['GET', 'POST']])]
@@ -37,6 +76,9 @@ class DashboardController extends AbstractDashboardController
             || str_contains((string) $request->headers->get('Accept'), 'application/json');
 
         if ($request->isMethod('POST')) {
+            if ($request->request->get('step') === 'confirm-batch') {
+                return $this->handleConfirmBatch($request, $wantsJson);
+            }
             if ($request->request->get('step') === 'confirm') {
                 return $this->handleConfirm($request, $wantsJson);
             }
@@ -68,34 +110,116 @@ class DashboardController extends AbstractDashboardController
 
     private function handleStage(Request $request, bool $wantsJson): Response
     {
-        $file = $request->files->get('audio');
-        if (!$file instanceof UploadedFile) {
-            return $this->uploadError('Выберите аудиофайл (MP3 или M4A).', $wantsJson);
+        if ($request->files->count() === 0 && $request->getContentLength() > 0 && $request->request->count() === 0) {
+            return $this->uploadError($this->uploadFileValidator->postTooLargeHint(), $wantsJson);
         }
-        if (!$file->isValid()) {
-            return $this->uploadError($file->getErrorMessage() ?: 'Не удалось загрузить файл.', $wantsJson);
+
+        $files = $this->collectUploadedAudioFiles($request);
+        if ($files === []) {
+            return $this->uploadError('Выберите один или несколько аудиофайлов (MP3 или M4A).', $wantsJson);
+        }
+
+        foreach ($files as $file) {
+            $error = $this->uploadFileValidator->describeError($file);
+            if ($error !== null) {
+                return $this->uploadError($error, $wantsJson);
+            }
         }
 
         try {
-            $staged = $this->trackUploadHandler->stageUpload($file);
+            if (count($files) === 1) {
+                $file = $files[0];
+                $staged = $this->trackUploadHandler->stageUpload($file);
 
-            if ($wantsJson) {
-                return new JsonResponse([
-                    'ok' => true,
+                if ($wantsJson) {
+                    return new JsonResponse([
+                        'ok' => true,
+                        'batch' => false,
+                        'token' => $staged['token'],
+                        'preview' => $staged['preview'],
+                        'fileName' => $file->getClientOriginalName(),
+                    ]);
+                }
+
+                return $this->renderUpload([
                     'token' => $staged['token'],
                     'preview' => $staged['preview'],
                     'fileName' => $file->getClientOriginalName(),
                 ]);
             }
 
+            $items = $this->trackUploadHandler->stageBatchUpload($files);
+            $successful = array_values(array_filter($items, static fn (array $item): bool => !isset($item['error'])));
+            if ($successful === []) {
+                $firstError = $items[0]['error'] ?? 'Не удалось обработать файлы.';
+
+                return $this->uploadError($firstError, $wantsJson);
+            }
+
+            if ($wantsJson) {
+                return new JsonResponse([
+                    'ok' => true,
+                    'batch' => true,
+                    'items' => $items,
+                ]);
+            }
+
             return $this->renderUpload([
-                'token' => $staged['token'],
-                'preview' => $staged['preview'],
-                'fileName' => $file->getClientOriginalName(),
+                'batchItems' => $items,
             ]);
         } catch (\Throwable $e) {
             return $this->uploadError($e->getMessage(), $wantsJson);
         }
+    }
+
+    private function handleConfirmBatch(Request $request, bool $wantsJson): Response
+    {
+        try {
+            $rawItems = (string) $request->request->get('items', '[]');
+            $items = json_decode($rawItems, true, 512, JSON_THROW_ON_ERROR);
+            if (!is_array($items) || $items === []) {
+                throw new \InvalidArgumentException('Список файлов для сохранения пуст.');
+            }
+
+            $defaults = [
+                'artist' => $request->request->get('artist'),
+                'album' => $request->request->get('album'),
+                'year' => $request->request->get('year'),
+                'publish' => $request->request->get('publish'),
+                'publish_album' => $request->request->get('publish_album'),
+            ];
+
+            $tracks = $this->trackUploadHandler->confirmBatchStagedUpload($items, $defaults);
+            $titles = array_map(static fn ($track) => '«'.$track->getTitle().'»', $tracks);
+            $message = sprintf('Сохранено треков: %d — %s', count($tracks), implode(', ', $titles));
+
+            if ($wantsJson) {
+                return new JsonResponse([
+                    'ok' => true,
+                    'message' => $message,
+                    'count' => count($tracks),
+                    'tracks' => array_map(static fn ($track) => [
+                        'title' => $track->getTitle(),
+                        'slug' => $track->getSlug(),
+                    ], $tracks),
+                ]);
+            }
+
+            return $this->renderUpload(['success' => $message]);
+        } catch (\Throwable $e) {
+            return $this->uploadError($e->getMessage(), $wantsJson);
+        }
+    }
+
+    /** @return UploadedFile[] */
+    private function collectUploadedAudioFiles(Request $request): array
+    {
+        $fromArray = $this->uploadFileValidator->collectAudioFiles($request->files->all('audio'));
+        if ($fromArray !== []) {
+            return $fromArray;
+        }
+
+        return $this->uploadFileValidator->collectAudioFiles($request->files->get('audio'));
     }
 
     private function handleConfirm(Request $request, bool $wantsJson): Response
@@ -163,9 +287,9 @@ class DashboardController extends AbstractDashboardController
     public function configureMenuItems(): iterable
     {
         yield MenuItem::linkToDashboard('Панель', 'fa fa-home');
-        yield MenuItem::linkToRoute('Загрузить трек', 'fa fa-upload', 'admin_upload_track');
+        yield MenuItem::linkToRoute('Загрузить треки', 'fa fa-upload', 'admin_upload_track');
+        yield MenuItem::linkToRoute('Аналитика', 'fa fa-chart-bar', 'admin_analytics');
         yield MenuItem::linkTo(PlaylistCrudController::class, 'Плейлисты', 'fa fa-list');
-        yield MenuItem::linkTo(PlaylistItemCrudController::class, 'Треки плейлистов', 'fa fa-list-ol');
         yield MenuItem::linkTo(TrackCrudController::class, 'Треки', 'fa fa-music');
         yield MenuItem::linkTo(AlbumCrudController::class, 'Альбомы', 'fa fa-compact-disc');
         yield MenuItem::linkTo(ArtistCrudController::class, 'Артисты', 'fa fa-user');

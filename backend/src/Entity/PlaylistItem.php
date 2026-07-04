@@ -22,7 +22,7 @@ class PlaylistItem
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
-    private Track $track;
+    private ?Track $track = null;
 
     #[ORM\Column]
     private int $sortOrder = 0;
@@ -49,7 +49,7 @@ class PlaylistItem
         return $this;
     }
 
-    public function getTrack(): Track
+    public function getTrack(): ?Track
     {
         return $this->track;
     }
@@ -71,5 +71,17 @@ class PlaylistItem
         $this->sortOrder = $sortOrder;
 
         return $this;
+    }
+
+    public function __toString(): string
+    {
+        if ($this->track === null) {
+            return 'Новый трек';
+        }
+
+        $title = $this->track->getTitle();
+        $order = $this->sortOrder > 0 ? sprintf('#%d · ', $this->sortOrder) : '';
+
+        return $order.$title;
     }
 }

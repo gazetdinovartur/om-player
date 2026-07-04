@@ -1,4 +1,4 @@
-FROM php:8.4-cli-bookworm
+FROM php:8.4-fpm-bookworm
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
@@ -20,6 +20,7 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 
 WORKDIR /app
 
-EXPOSE 8000
+EXPOSE 9000
 
 ENTRYPOINT ["entrypoint.sh"]
+CMD ["php-fpm"]

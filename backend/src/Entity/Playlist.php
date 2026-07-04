@@ -135,6 +135,19 @@ class Playlist
         return $this->items;
     }
 
+    public function addItem(PlaylistItem $item): void
+    {
+        if (!$this->items->contains($item)) {
+            $this->items->add($item);
+            $item->setPlaylist($this);
+        }
+    }
+
+    public function removeItem(PlaylistItem $item): void
+    {
+        $this->items->removeElement($item);
+    }
+
     public function __toString(): string
     {
         return $this->title;

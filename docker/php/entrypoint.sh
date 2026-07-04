@@ -8,5 +8,6 @@ if [ ! -f vendor/autoload.php ]; then
 fi
 
 php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
+php bin/console app:init-admin --write-env --if-unset --no-interaction 2>/dev/null || true
 
-exec php -c php.ini -S 0.0.0.0:8000 -t public public/router.php
+exec "$@"

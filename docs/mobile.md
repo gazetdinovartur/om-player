@@ -66,12 +66,15 @@
 
 ### PWA / offline
 
-Service worker — на уровне **хост-сайта** (`sw.js`), не внутри `@om/player`.
+Service worker — на уровне **хост-сайта** (`backend/public/sw.js`), не внутри `@om/player`.
 
-Стратегия для «Живая Музыка Ом»:
+Текущая стратегия demo-сайта:
 
-- Кэш shell + player JS
-- Аудио — network-first или cache-on-play (см. `docs/09-offline-and-pwa.md` в корне monorepo)
+- **Precache** — shell (CSS, JS, player bundle)
+- **Runtime cache** — обложки альбомов (`/media/covers/`)
+- **Аудио** — network-only (не кэшируется, stream + Range)
+
+Для полного offline-first потребуется отдельная стратегия cache-on-play — пока не реализовано.
 
 ### iOS quirks
 

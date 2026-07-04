@@ -1,0 +1,51 @@
+# Apache / shared-хостинг (NetAngels и аналоги)
+# На сервере: www/ (корень сайта) -> .../om-player/public -> backend/public
+# Symfony: kernel.project_dir = backend/ — не зависит от symlink www.
+
+DirectoryIndex index.php
+
+Options -MultiViews -Indexes +FollowSymLinks
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Если сайт в подкаталоге — раскомментируйте и укажите путь, например: /music/
+    # RewriteBase /
+
+    # Authorization для API (если понадобится Bearer)
+    RewriteCond %{HTTP:Authorization} .+
+    RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Аудио — только через Symfony (подписанные URL, HTTP Range для seek)
+    RewriteRule ^media/audio/ index.php [L,QSA]
+
+    # Статика: обложки, css, js, build/player — отдаёт Apache напрямую
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Все остальные запросы — front controller
+    RewriteRule ^ index.php [L,QSA]
+</IfModule>
+
+<IfModule !mod_rewrite.c>
+    DirectoryIndex index.php
+    FallbackResource /index.php
+</IfModule>
+
+# Запретить доступ к служебным файлам, если они случайно попали в public/
+<FilesMatch "(^\.env|^\.htaccess|\.(log|md|twig|yaml|yml|lock|dist|git))$">
+    Require all denied
+</FilesMatch>
+
+# Кэш статики (обложки уже с UUID в пути — безопасно кэшировать)
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/jpeg "access plus 7 days"
+    ExpiresByType image/png "access plus 7 days"
+    ExpiresByType image/webp "access plus 7 days"
+    ExpiresByType text/css "access plus 7 days"
+    ExpiresByType application/javascript "access plus 7 days"
+</IfModule>

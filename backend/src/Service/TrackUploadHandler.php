@@ -22,6 +22,7 @@ final class TrackUploadHandler
         private readonly CatalogResolver $catalogResolver,
         private readonly CoverProcessor $coverProcessor,
         private readonly EntityManagerInterface $em,
+        private readonly UploadFileValidator $uploadFileValidator,
         #[Autowire('%kernel.project_dir%/var/upload-staging')]
         string $stagingDir,
     ) {
@@ -35,9 +36,85 @@ final class TrackUploadHandler
     public function stageUpload(UploadedFile $file): array
     {
         if (!$file->isValid()) {
-            throw new \InvalidArgumentException($file->getErrorMessage() ?: 'Файл не был загружен.');
+            throw new \InvalidArgumentException(
+                $this->uploadFileValidator->describeError($file) ?? 'Файл не был загружен.',
+            );
         }
 
+        return $this->stageValidUpload($file, $file->getClientOriginalName());
+    }
+
+    /**
+     * @param UploadedFile[] $files
+     *
+     * @return list<array{token: string, preview: array<string, mixed>, fileName: string}|array{fileName: string, error: string}>
+     */
+    public function stageBatchUpload(array $files): array
+    {
+        $items = [];
+        foreach ($files as $file) {
+            if (!$file instanceof UploadedFile) {
+                continue;
+            }
+
+            $fileName = $file->getClientOriginalName();
+            if (!$file->isValid()) {
+                $items[] = [
+                    'fileName' => $fileName,
+                    'error' => $this->uploadFileValidator->describeError($file) ?? 'Файл не был загружен.',
+                ];
+                continue;
+            }
+
+            try {
+                $staged = $this->stageValidUpload($file, $fileName);
+                $items[] = [
+                    'token' => $staged['token'],
+                    'preview' => $staged['preview'],
+                    'fileName' => $fileName,
+                ];
+            } catch (\Throwable $e) {
+                $items[] = [
+                    'fileName' => $fileName,
+                    'error' => $e->getMessage(),
+                ];
+            }
+        }
+
+        return $items;
+    }
+
+    /**
+     * @param list<array{token: string, title?: mixed, trackNumber?: mixed, year?: mixed}> $items
+     * @param array{title?: mixed, artist?: mixed, album?: mixed, trackNumber?: mixed, year?: mixed, publish?: mixed, publish_album?: mixed} $defaults
+     *
+     * @return Track[]
+     */
+    public function confirmBatchStagedUpload(array $items, array $defaults): array
+    {
+        $tracks = [];
+        foreach ($items as $item) {
+            $token = (string) ($item['token'] ?? '');
+            if ($token === '') {
+                throw new \InvalidArgumentException('Отсутствует token для одного из файлов.');
+            }
+
+            $form = $defaults;
+            foreach (['title', 'trackNumber', 'year'] as $field) {
+                if (array_key_exists($field, $item) && $item[$field] !== '' && $item[$field] !== null) {
+                    $form[$field] = $item[$field];
+                }
+            }
+
+            $tracks[] = $this->confirmStagedUpload($token, $form);
+        }
+
+        return $tracks;
+    }
+
+    /** @return array{token: string, preview: array<string, mixed>} */
+    private function stageValidUpload(UploadedFile $file, string $originalName): array
+    {
         $token = bin2hex(random_bytes(16));
         $extension = $this->resolveExtension($file);
         $stagedPath = $this->stagingDir.'/'.$token.'.'.$extension;
@@ -47,7 +124,6 @@ final class TrackUploadHandler
             throw new \RuntimeException('Не удалось сохранить загруженный файл во временную папку.');
         }
 
-        $originalName = $file->getClientOriginalName();
         $meta = $this->metadataExtractor->extract($stagedPath, $originalName);
         if ($meta->embeddedCover !== null) {
             file_put_contents(

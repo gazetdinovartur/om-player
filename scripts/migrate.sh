@@ -25,3 +25,4 @@ case "$DATABASE_URL" in
 esac
 
 php bin/console doctrine:migrations:migrate --no-interaction
+php bin/console app:init-admin --write-env --if-unset --no-interaction 2>/dev/null || true

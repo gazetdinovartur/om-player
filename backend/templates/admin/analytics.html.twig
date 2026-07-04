@@ -1,0 +1,85 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block content_title %}Аналитика воспроизведения{% endblock %}
+
+{% block main %}
+<style>
+    .analytics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .analytics-stat { padding: 1.1rem 1.25rem; border-radius: 12px; background: var(--ea-color-gray-800, #1a1f1c); border: 1px solid rgba(255,255,255,.06); }
+    .analytics-stat__value { font-size: 1.75rem; font-weight: 700; line-height: 1.1; color: #7cb88a; }
+    .analytics-stat__label { margin-top: .35rem; font-size: .82rem; color: #9a9488; }
+    .analytics-section { margin-bottom: 2rem; }
+    .analytics-section h2 { font-size: 1rem; margin: 0 0 1rem; font-weight: 600; }
+    .analytics-bars { display: flex; align-items: flex-end; gap: .45rem; height: 120px; }
+    .analytics-bar { flex: 1; display: flex; flex-direction: column; align-items: center; gap: .35rem; min-width: 0; }
+    .analytics-bar__fill { width: 100%; border-radius: 4px 4px 0 0; background: #4a7c59; min-height: 2px; }
+    .analytics-bar__label { font-size: .65rem; color: #7a7268; writing-mode: vertical-rl; transform: rotate(180deg); max-height: 48px; overflow: hidden; }
+    .analytics-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    .analytics-table th, .analytics-table td { padding: .65rem .75rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,.06); }
+    .analytics-table th { color: #9a9488; font-weight: 500; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; }
+    .analytics-table tr:last-child td { border-bottom: 0; }
+</style>
+
+<div class="analytics-grid">
+    <div class="analytics-stat">
+        <div class="analytics-stat__value">{{ plays7 }}</div>
+        <div class="analytics-stat__label">Воспроизведений за 7 дней</div>
+    </div>
+    <div class="analytics-stat">
+        <div class="analytics-stat__value">{{ plays30 }}</div>
+        <div class="analytics-stat__label">Воспроизведений за 30 дней</div>
+    </div>
+    <div class="analytics-stat">
+        <div class="analytics-stat__value">{{ sessions7 }}</div>
+        <div class="analytics-stat__label">Сессий за 7 дней</div>
+    </div>
+    <div class="analytics-stat">
+        <div class="analytics-stat__value">{{ events7 }}</div>
+        <div class="analytics-stat__label">Всех событий за 7 дней</div>
+    </div>
+</div>
+
+<div class="analytics-section">
+    <h2>Воспроизведения по дням (14 дней)</h2>
+    {% if daily is empty %}
+        <p style="color:#9a9488">Пока нет данных — начните слушать на сайте.</p>
+    {% else %}
+        <div class="analytics-bars">
+            {% for day, count in daily %}
+                <div class="analytics-bar" title="{{ day }}: {{ count }}">
+                    <div class="analytics-bar__fill" style="height: {{ maxDaily > 0 ? (count / maxDaily * 100)|round : 0 }}%"></div>
+                    <span class="analytics-bar__label">{{ day|slice(5) }}</span>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+</div>
+
+<div class="analytics-section">
+    <h2>Топ треков (30 дней)</h2>
+    {% if topTracks is empty %}
+        <p style="color:#9a9488">Нет данных о воспроизведениях.</p>
+    {% else %}
+        <table class="analytics-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Трек</th>
+                    <th>Slug</th>
+                    <th>Plays</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in topTracks %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ row.title }}</td>
+                        <td><code>{{ row.slug }}</code></td>
+                        <td>{{ row.count }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,4 +1,4 @@
-.PHONY: install build dev migrate server test docker-up docker-down docker-logs docker-mysql
+.PHONY: install build dev migrate server test docker-up docker-down docker-logs docker-mysql init-env icons
 
 install:
 	cd backend && composer install
@@ -6,6 +6,15 @@ install:
 
 build:
 	bash scripts/build.sh
+
+icons:
+	php scripts/generate-icons.php
+
+init-env:
+	bash scripts/init-env.sh
+
+init-admin:
+	cd backend && php bin/console app:init-admin --write-env --force
 
 migrate:
 	bash scripts/migrate.sh
@@ -15,14 +24,14 @@ server:
 
 test:
 	cd backend && php bin/console doctrine:migrations:migrate --no-interaction --env=test
-	cd backend && vendor/bin/phpunit
+	cd backend && php -c php.ini vendor/bin/phpunit
 
 dev: build migrate server
 
 seed-album:
 	cd backend && php bin/console app:import-album --purge
 
-# Docker — full stack (MySQL + backend app)
+# Docker — nginx + PHP-FPM + MySQL
 docker-up: build
 	docker compose up -d --build
 
@@ -30,7 +39,7 @@ docker-down:
 	docker compose down
 
 docker-logs:
-	docker compose logs -f app mysql
+	docker compose logs -f nginx php mysql
 
 # MySQL only — then use make migrate && make server on host
 docker-mysql:

@@ -10,6 +10,7 @@ use App\Repository\ArtistRepository;
 use App\Repository\PlaylistRepository;
 use App\Repository\TrackRepository;
 use App\Service\AnalyticsIngestService;
+use App\Service\MediaUrlGenerator;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -28,6 +29,7 @@ final class MusicApiController extends AbstractController
         private readonly PlaylistRepository $playlistRepository,
         private readonly TrackApiSerializer $serializer,
         private readonly AnalyticsIngestService $analytics,
+        private readonly MediaUrlGenerator $mediaUrls,
         #[Autowire(service: 'limiter.api')]
         private readonly RateLimiterFactory $apiLimiter,
     ) {
@@ -160,7 +162,7 @@ final class MusicApiController extends AbstractController
                 'slug' => $p->getSlug(),
                 'title' => $p->getTitle(),
                 'description' => $p->getDescription(),
-                'coverUrl' => $p->getCoverPath() ? '/media/'.$p->getCoverPath() : null,
+                'coverUrl' => $this->mediaUrls->url($p->getCoverPath()),
                 'trackCount' => $p->getItems()->count(),
             ], $playlists),
         ]);
@@ -181,9 +183,10 @@ final class MusicApiController extends AbstractController
         $tracks = [];
         foreach ($playlist->getItems() as $item) {
             $track = $item->getTrack();
-            if ($track->isPublished()) {
-                $tracks[] = array_merge($this->serializer->trackWithStream($track), []);
+            if ($track === null || !$track->isPublished()) {
+                continue;
             }
+            $tracks[] = array_merge($this->serializer->trackWithStream($track), []);
         }
 
         return $this->json([
@@ -215,7 +218,7 @@ final class MusicApiController extends AbstractController
             'slug' => $artist->getSlug(),
             'name' => $artist->getName(),
             'bio' => $artist->getBio(),
-            'photoUrl' => $artist->getPhotoPath() ? '/media/'.$artist->getPhotoPath() : null,
+            'photoUrl' => $this->mediaUrls->url($artist->getPhotoPath()),
             'albums' => array_map(fn ($a) => $this->serializer->albumSummary($a), $albums),
         ]);
     }

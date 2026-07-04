@@ -1,38 +1,37 @@
 # Docker
 
-## MySQL only (backend на хосте)
+Локальная разработка. Production — [docs/deployment.md](../docs/deployment.md).
 
-```bash
-docker compose up -d mysql
-```
+## Стек
 
-В `backend/.env.local`:
+`docker compose up` поднимает **nginx + PHP-FPM + MySQL**:
 
-```bash
-DATABASE_URL="mysql://om:om@127.0.0.1:3306/om_player?serverVersion=8.4&charset=utf8mb4"
-```
-
-Затем на хосте: `make migrate && make server`
+| Сервис | Порт | Назначение |
+|--------|------|------------|
+| nginx | 8000 | Reverse proxy, статика, Range для audio |
+| php | 9000 (internal) | Symfony через PHP-FPM |
+| mysql | 3306 | База данных |
 
 ---
 
-## Полный стек (MySQL + PHP app)
+## Быстрый старт
 
 ```bash
+bash scripts/init-env.sh    # создать backend/.env с паролем admin
 make docker-up
 # → http://127.0.0.1:8000/
 ```
 
-Собирает player, поднимает MySQL и Symfony в контейнере `app`.
-
 ---
 
-## MinIO (опционально)
+## MySQL only (backend на хосте)
 
 ```bash
-docker compose --profile s3 up -d
-# API: http://127.0.0.1:9000  Console: http://127.0.0.1:9001
+docker compose up -d mysql
+make migrate && make server
 ```
+
+В `backend/.env` используйте `127.0.0.1` как хост MySQL.
 
 ---
 
@@ -40,6 +39,14 @@ docker compose --profile s3 up -d
 
 | Команда | Действие |
 |---------|----------|
-| `make docker-up` | build player + `docker compose up -d --build` |
+| `make docker-up` | build player + nginx + php-fpm + mysql |
 | `make docker-down` | остановить контейнеры |
-| `make docker-logs` | логи app + mysql |
+| `make docker-logs` | логи nginx, php, mysql |
+
+---
+
+## Переменные окружения
+
+Единый файл: **`backend/.env`** (см. [docs/env.md](../docs/env.md)).
+
+Docker Compose читает его через `env_file`. Для PHP-контейнера `DATABASE_URL` переопределяется на хост `mysql`.

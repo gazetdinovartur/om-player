@@ -1,39 +1,49 @@
 # OmPlayer
 
-Embeddable music player — Web Component + Symfony backend.
+Embeddable music player — Lit Web Component + Symfony backend.
 
 ```
 om-player/
-├── player/      # @om/player — Lit Web Component (<om-player>)
-├── backend/     # API, admin, demo site
+├── player/      # @om/player — <om-player> Web Component
+├── backend/     # API, admin, demo site, media
 ├── openapi/     # REST API v1 contract
+├── deploy/      # nginx example for production
 ├── docker/      # PHP Dockerfile, entrypoint
-├── docs/        # module documentation
+├── docs/        # documentation
 └── scripts/     # build player → backend/public
 ```
 
+Production: **https://music.arturlun.ru** — см. [docs/deployment.md](docs/deployment.md)
+
 ---
 
-## Быстрый старт
+## Быстрый старт (локально)
 
 ```bash
-make docker-mysql   # MySQL в Docker (:3306)
-make install
-make build
-make migrate
-make server
+bash scripts/init-env.sh
+make docker-mysql
+make install && make build && make icons && make migrate && make server
 # → http://127.0.0.1:8000/
 ```
-
-БД: **MySQL** `om_player` (Docker volume `om-player_om_mysql_data`).  
-Legacy SQLite импорт: `bash scripts/import-sqlite.sh`.
 
 | URL | Назначение |
 |-----|------------|
 | http://127.0.0.1:8000/ | Demo site |
 | http://127.0.0.1:8000/admin | EasyAdmin |
 | http://127.0.0.1:8000/api/v1/albums | REST API |
-| http://127.0.0.1:8000/api/openapi.yaml | OpenAPI spec |
+
+---
+
+## Документация
+
+| | |
+|---|---|
+| [docs/README.md](docs/README.md) | **Index — начните здесь** |
+| [docs/overview.md](docs/overview.md) | Обзор проекта, статус, риски |
+| [docs/deployment.md](docs/deployment.md) | **Деплой на VPS (nginx)** |
+| [docs/deploy/shared-hosting.md](docs/deploy/shared-hosting.md) | **Shared-хостинг (NetAngels, Apache)** |
+| [docs/local-setup.md](docs/local-setup.md) | Локальная разработка |
+| [docs/env.md](docs/env.md) | Переменные окружения |
 
 ---
 
@@ -50,30 +60,9 @@ bash scripts/build.sh
 
 ## Docker
 
-**MySQL only** (backend на хосте):
-
 ```bash
-make docker-mysql
-# backend/.env.local → DATABASE_URL=mysql://om:om@127.0.0.1:3306/om_player?...
-make migrate && make server
-```
-
-**Полный стек** (MySQL + PHP в контейнере):
-
-```bash
-make docker-up
-# → http://127.0.0.1:8000/
+make docker-up       # MySQL + PHP app
+make docker-mysql    # только MySQL, backend на хосте
 ```
 
 Подробнее: [docker/README.md](docker/README.md)
-
----
-
-## Документация
-
-- [docs/README.md](docs/README.md) — index
-- [docs/metadata.md](docs/metadata.md) — track metadata
-- [docs/embed.md](docs/embed.md) — embedding
-- [docs/mobile.md](docs/mobile.md) — mobile UX
-- [docs/backend-integration.md](docs/backend-integration.md) — backend setup
-- [ANNOUNCEMENT.md](ANNOUNCEMENT.md) — launch copy

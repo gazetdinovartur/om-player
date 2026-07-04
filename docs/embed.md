@@ -58,9 +58,16 @@ Persistent shell — элементы **не пересоздаются** при
 Кнопки на странице:
 
 ```html
-<button type="button" data-om-play="track-slug">▶ Трек</button>
+<!-- Воспроизвести альбом (slug на кнопке) -->
 <button type="button" data-om-play-album="album-slug">▶ Альбом</button>
+
+<!-- Или: кнопка внутри карточки альбома -->
+<div data-om-album="album-slug">
+  <button type="button" data-om-play>▶ Слушать</button>
+</div>
 ```
+
+> **Note:** `data-om-play` без родителя `data-om-album` не запустит трек по slug — `player-bridge.js` вызывает `playAlbumPublic()`. Для одиночного трека используйте `player.loadTrackPublic('track-slug')` или mode `embed`.
 
 `player-bridge.js` — опциональная обвязка (Turbo, analytics, hotkeys). Логика воспроизведения в `@om/player`.
 
@@ -126,16 +133,14 @@ player.restoreSessionPublic();
 
 Если embed на **другом домене**, backend должен разрешить origin:
 
-```yaml
-# nelmio_cors.yaml
-nelmio_cors:
-  paths:
-    '^/api/':
-      allow_origin: ['https://your-site.com']
-      allow_methods: ['GET', 'POST', 'OPTIONS']
+```bash
+# backend/.env.local
+CORS_ALLOW_ORIGIN='^https://(music\.arturlun\.ru|arturlun\.ru)$'
 ```
 
-Stream URLs (`/media/audio/...`) тоже должны отдаваться с CORS, если audio грузится cross-origin.
+Конфиг: `backend/config/packages/nelmio_cors.yaml` (читает `CORS_ALLOW_ORIGIN` как regex).
+
+Stream URLs (`/media/audio/...`) и обложки (`/media/covers/...`) тоже нуждаются в CORS headers, если audio грузится cross-origin — настройте в nginx (см. [deployment.md](deployment.md)).
 
 ---
 

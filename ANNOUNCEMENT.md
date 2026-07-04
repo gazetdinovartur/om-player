@@ -75,8 +75,8 @@ Backend отдаёт JSON по [OpenAPI](openapi/om-api.v1.yaml). Symfony-реф
 
 ## Статус
 
-- v0.1 — production-ready для «Живая Музыка Ом»
-- Standalone модуль: `projects/om-player/`
+- v0.1 — рабочий dev/reference implementation
+- Production: [docs/deployment.md](docs/deployment.md) (music.arturlun.ru)
 - OpenAPI v1 — стабильный контракт
 
 ---

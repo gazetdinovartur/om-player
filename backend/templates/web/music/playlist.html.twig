@@ -1,0 +1,57 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ playlist.title }} — OmPlayer{% endblock %}
+
+{% block head %}
+    {% if playlist.coverPath %}
+        <meta property="og:title" content="{{ playlist.title }}">
+        <meta property="og:description" content="Плейлист OmPlayer">
+        <meta property="og:image" content="{{ absolute_url(asset('media/' ~ playlist.coverPath)) }}">
+    {% endif %}
+{% endblock %}
+
+{% block body %}
+<section class="album-hero"{% if playlist.coverPath %} style="--album-cover: url('{{ asset('media/' ~ playlist.coverPath) }}')"{% endif %}>
+    <div class="album-hero__backdrop" aria-hidden="true"></div>
+    <div class="album-hero__content">
+        <div class="album-hero__cover">
+            {% if playlist.coverPath %}
+                <img src="{{ asset('media/' ~ playlist.coverPath) }}" alt="{{ playlist.title }}" loading="eager">
+            {% else %}
+                <div class="album-card__placeholder album-card__placeholder--large"></div>
+            {% endif %}
+        </div>
+        <div class="album-hero__info">
+            <span class="pill pill--soft">Плейлист</span>
+            <h1 class="album-hero__title">{{ playlist.title }}</h1>
+            {% if playlist.description %}
+                <p class="album-hero__description">{{ playlist.description }}</p>
+            {% endif %}
+            <p class="album-hero__meta">
+                {{ playlist.items|length }} {{ playlist.items|length == 1 ? 'трек' : (playlist.items|length < 5 ? 'трека' : 'треков') }}
+            </p>
+            <div class="album-hero__actions">
+                <button type="button" class="btn btn--primary btn--lg" data-om-play-playlist="{{ playlist.slug }}">
+                    <svg class="btn__icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.14v13.72L19 12 8 5.14z"/></svg>
+                    Слушать плейлист
+                </button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="player-shell">
+    <script type="application/json" id="playlist-tracks-json">{{ playlistTracksJson|raw }}</script>
+    <om-player
+        mode="full"
+        playlist="{{ playlist.slug }}"
+        data-queue-source="playlist-tracks-json"
+        {% if playlist.coverPath %}album-cover="{{ asset('media/' ~ playlist.coverPath) }}"{% endif %}
+        album-title="{{ playlist.title }}"
+        album-artist="Плейлист"
+        api-base="{{ app.request.schemeAndHttpHost }}/api/v1"
+        theme="light"
+        class="album-page__player"
+    ></om-player>
+</div>
+{% endblock %}

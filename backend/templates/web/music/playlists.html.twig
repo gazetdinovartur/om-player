@@ -1,0 +1,41 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Плейлисты — OmPlayer{% endblock %}
+
+{% block body %}
+<header class="catalog-header">
+    <div>
+        <h1 class="catalog-header__title">Плейлисты</h1>
+        <p class="catalog-header__lead">Подборки треков для прослушивания</p>
+    </div>
+</header>
+
+<section class="section">
+    <div class="album-grid">
+        {% for playlist in playlists %}
+            <a class="album-card" href="{{ path('web_music_playlist', {slug: playlist.slug}) }}" data-om-playlist="{{ playlist.slug }}">
+                <div class="album-card__cover">
+                    {% if playlist.coverPath %}
+                        <img src="{{ asset('media/' ~ playlist.coverPath) }}" alt="{{ playlist.title }}" loading="lazy">
+                    {% else %}
+                        <div class="album-card__placeholder"></div>
+                    {% endif %}
+                    <span class="album-card__badge">Плейлист</span>
+                    <button type="button" class="album-card__play" data-om-play-playlist="{{ playlist.slug }}" aria-label="Слушать">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3 2.5v11l10-5.5L3 2.5z"/></svg>
+                    </button>
+                </div>
+                <div class="album-card__body">
+                    <h2 class="album-card__title">{{ playlist.title }}</h2>
+                    <p class="album-card__meta">{{ playlist.items|length }} {{ playlist.items|length == 1 ? 'трек' : (playlist.items|length < 5 ? 'трека' : 'треков') }}</p>
+                </div>
+            </a>
+        {% else %}
+            <div class="empty-state">
+                <p class="empty-state__title">Пока нет плейлистов</p>
+                <p>Создайте плейлист в админке и отметьте его публичным.</p>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

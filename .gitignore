@@ -4,16 +4,19 @@
 # Player
 /player/node_modules/
 .idea
-# Backend (see backend/.gitignore for vendor, var, .env)
+# Backend (see backend/.gitignore for vendor, var)
 /backend/vendor/
 /backend/var/
-/backend/.env.local
+/backend/.env
 /backend/.phpunit.cache/
 
 # Uploaded media (import via app:import-album or admin upload)
 /backend/public/media/audio/
 /backend/public/media/covers/
 !/backend/public/media/.gitkeep
+
+# www создаётся на сервере рядом с om-player (не в git)
+/www
 
 # Keep built assets in repo:
 # /player/dist/

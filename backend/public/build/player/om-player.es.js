@@ -1735,6 +1735,19 @@ class Y extends I {
       }
     }
   }
+  async playPlaylist(t) {
+    if (this.client) {
+      this.loading = !0;
+      try {
+        const { tracks: i } = await this.client.getPlaylistTracks(t);
+        i.length && (this.store.setQueue(i, 0, 0, !0, !0), this.visible = !0);
+      } catch {
+        this.error = "Плейлист недоступен";
+      } finally {
+        this.isConnected && (this.loading = !1);
+      }
+    }
+  }
   /** Play/pause synchronously while the user-gesture is still active. */
   trySyncPlayPausePublic() {
     return this.trySyncPlayPause();
@@ -1868,6 +1881,9 @@ class Y extends I {
   }
   async playAlbumPublic(t) {
     this.visible = !0, await this.playAlbum(t);
+  }
+  async playPlaylistPublic(t) {
+    this.visible = !0, await this.playPlaylist(t);
   }
   async restoreQueuePublic(t, i, s, r, n, l = !0) {
     if (this.client) {

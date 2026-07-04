@@ -14,6 +14,16 @@
         <ini name="display_errors" value="1" />
         <ini name="error_reporting" value="-1" />
         <server name="APP_ENV" value="test" force="true" />
+        <server name="APP_SECRET" value="test_secret_for_phpunit" force="true" />
+        <server name="DATABASE_URL" value="sqlite:///%kernel.project_dir%/var/data-test.db" force="true" />
+        <server name="DEFAULT_URI" value="http://localhost" force="true" />
+        <server name="CORS_ALLOW_ORIGIN" value="*" force="true" />
+        <server name="JMO_DEFAULT_ARTIST_NAME" value="Test Artist" force="true" />
+        <server name="ADMIN_USERNAME" value="admin" force="true" />
+        <server name="ADMIN_PASSWORD" value="test" force="true" />
+        <server name="MEDIA_BASE_URL" value="" force="true" />
+        <server name="MEDIA_STREAM_PROTECT" value="1" force="true" />
+        <server name="MEDIA_STREAM_TTL" value="14400" force="true" />
         <server name="SHELL_VERBOSITY" value="-1" />
     </php>
 

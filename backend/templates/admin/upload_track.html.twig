@@ -1,6 +1,6 @@
 {% extends '@EasyAdmin/page/content.html.twig' %}
 
-{% block content_title %}Загрузка трека{% endblock %}
+{% block content_title %}Загрузка треков{% endblock %}
 
 {% block main %}
 <div class="track-upload" data-upload-url="{{ upload_url }}">
@@ -11,8 +11,8 @@
         {{ success|default('') }}
     </div>
 
-    <div class="track-upload__dropzone{% if preview and token %} is-hidden{% endif %}" data-dropzone tabindex="0" role="button" aria-label="Загрузить аудиофайл">
-        <input type="file" class="track-upload__input" data-file-input accept="audio/mpeg,audio/mp3,audio/mp4,audio/x-m4a,audio/*,.mp3,.m4a" hidden>
+    <div class="track-upload__dropzone{% if preview and token %} is-hidden{% endif %}{% if batchItems is defined and batchItems %} is-hidden{% endif %}" data-dropzone tabindex="0" role="button" aria-label="Загрузить аудиофайлы">
+        <input type="file" class="track-upload__input" data-file-input accept="audio/mpeg,audio/mp3,audio/mp4,audio/x-m4a,audio/*,.mp3,.m4a" multiple hidden>
         <div class="track-upload__dropzone-inner">
             <div class="track-upload__icon" aria-hidden="true">
                 <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
@@ -21,13 +21,13 @@
                     <path d="M17 22h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                 </svg>
             </div>
-            <p class="track-upload__headline">Перетащите файл сюда</p>
-            <p class="track-upload__hint">или нажмите для выбора · MP3, M4A · до 64 МБ</p>
-            <p class="track-upload__hint track-upload__hint--muted">Метаданные и обложка подтянутся автоматически</p>
+            <p class="track-upload__headline">Перетащите файлы сюда</p>
+            <p class="track-upload__hint">или нажмите для выбора · MP3, M4A · до 64 МБ каждый</p>
+            <p class="track-upload__hint track-upload__hint--muted">Можно выбрать несколько файлов · для локальной разработки используйте make server</p>
         </div>
         <div class="track-upload__loading is-hidden" data-loading aria-live="polite">
             <span class="track-upload__spinner" aria-hidden="true"></span>
-            <span>Читаем файл и теги…</span>
+            <span data-loading-label>Читаем файлы и теги…</span>
         </div>
     </div>
 
@@ -105,7 +105,63 @@
             </div>
         </form>
     </section>
+
+    <section class="track-upload__batch{% if batchItems is not defined or not batchItems %} is-hidden{% endif %}" data-batch-preview>
+        <div class="track-upload__preview-head">
+            <div>
+                <p class="track-upload__file-name" data-batch-count>
+                    {% if batchItems is defined %}{{ batchItems|length }} файл(ов){% endif %}
+                </p>
+                <p class="track-upload__file-meta">Общие поля применятся ко всем трекам</p>
+            </div>
+            <button type="button" class="track-upload__reset" data-batch-reset>Отмена</button>
+        </div>
+
+        <form class="track-upload__batch-form" data-batch-form method="post">
+            <input type="hidden" name="step" value="confirm-batch">
+            <input type="hidden" name="items" value="" data-batch-items-input>
+
+            <div class="track-upload__batch-shared">
+                <label class="track-upload__field">
+                    <span>Артист</span>
+                    <input type="text" name="artist" data-batch-artist>
+                </label>
+                <label class="track-upload__field">
+                    <span>Альбом</span>
+                    <input type="text" name="album" data-batch-album>
+                </label>
+                <label class="track-upload__field track-upload__field--narrow">
+                    <span>Год</span>
+                    <input type="number" name="year" data-batch-year min="1900" max="2100">
+                </label>
+                <div class="track-upload__checks">
+                    <label class="track-upload__check">
+                        <input type="checkbox" name="publish" value="1" data-batch-publish>
+                        <span>Опубликовать треки</span>
+                    </label>
+                    <label class="track-upload__check">
+                        <input type="checkbox" name="publish_album" value="1" data-batch-publish-album checked>
+                        <span>Опубликовать альбом</span>
+                    </label>
+                </div>
+            </div>
+
+            <ul class="track-upload__batch-list" data-batch-list></ul>
+
+            <div class="track-upload__actions">
+                <button type="submit" class="track-upload__submit" data-batch-submit>
+                    <span data-batch-submit-label>Сохранить все</span>
+                    <span class="track-upload__spinner track-upload__spinner--sm is-hidden" data-batch-submit-spinner aria-hidden="true"></span>
+                </button>
+            </div>
+        </form>
+    </section>
 </div>
 
 <script src="{{ asset('js/admin-upload.js') }}" defer></script>
+{% if batchItems is defined and batchItems %}
+<script>
+window.__OM_UPLOAD_BATCH = {{ batchItems|json_encode|raw }};
+</script>
+{% endif %}
 {% endblock %}

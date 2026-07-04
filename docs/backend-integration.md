@@ -1,28 +1,23 @@
 # Backend + OmPlayer
 
-Symfony backend и demo-сайт живут в **`backend/`** этого репозитория.
+Symfony backend и demo-сайт в **`backend/`**.
 
 ---
 
 ## Структура
 
 ```
-om-player/
-├── player/          → Web Component, собирается в backend/public/build/player/
-├── backend/         → API, admin, Twig site, media
-└── openapi/         → контракт, отдаётся на /api/openapi.yaml
+backend/
+├── src/Controller/Api/     MusicApiController — /api/v1/*
+├── src/Controller/Web/     Demo site, media streaming
+├── src/Controller/Admin/   EasyAdmin CRUD + upload
+├── src/Service/            Upload, metadata, catalog
+├── public/media/           Аудио и обложки (gitignored)
+├── public/build/player/    Собранный @om/player
+└── templates/              Twig demo site
 ```
 
----
-
-## Быстрый старт
-
-```bash
-make install
-make build      # player → backend/public/build/player/
-make migrate
-make server     # http://127.0.0.1:8000
-```
+Player собирается из `player/` → `public/build/player/` через `scripts/build.sh`.
 
 ---
 
@@ -32,15 +27,18 @@ make server     # http://127.0.0.1:8000
 
 | Route | Назначение |
 |-------|------------|
-| `GET /tracks/{slug}` | TrackDetail + stream |
-| `GET /albums/{slug}/tracks` | Очередь альбома |
+| `GET /tracks`, `/tracks/{slug}` | Список и detail + stream URL |
+| `GET /albums`, `/albums/{slug}/tracks` | Каталог и очередь альбома |
 | `GET /playlists/{slug}` | Плейлист |
+| `GET /artists/{slug}` | Артист + альбомы |
+| `GET /search?q=` | Поиск |
+| `POST /analytics/playback` | События воспроизведения |
 
-`TrackApiSerializer` — entity → JSON (title, artist, album, year, cover, stream).
+`TrackApiSerializer` → JSON. `MediaUrlGenerator` → абсолютные URL (если `MEDIA_BASE_URL`).
 
-`MediaStreamController` — `/media/audio/*` с HTTP Range.
+`MediaStreamController` — `/media/audio/*` с HTTP Range (dev server через `router.php`).
 
-OpenAPI: [../openapi/om-api.v1.yaml](../openapi/om-api.v1.yaml) → `/api/openapi.yaml`
+OpenAPI: [../openapi/om-api.v1.yaml](../openapi/om-api.v1.yaml) → `GET /api/openapi.yaml`
 
 ---
 
@@ -59,26 +57,33 @@ Site glue: `backend/public/js/player-bridge.js`, `theme.js`.
 
 ## Upload pipeline
 
-1. `AudioMetadataExtractor` — ID3
-2. `TrackUploadHandler` — persist
-3. `CatalogResolver` — artist/album
+1. `AudioMetadataExtractor` — ID3 через getID3
+2. `TrackUploadHandler` — stage → preview → confirm → persist
+3. `CatalogResolver` — artist/album resolution
 
 Admin: `/admin/upload-track`
+
+CLI: `app:import-album --path=... --purge`
 
 ---
 
 ## CORS
 
-`nelmio_cors` — для embed с других доменов. Настройка в `backend/config/packages/nelmio_cors.yaml`.
+`nelmio_cors` — regex из `CORS_ALLOW_ORIGIN`.  
+На production также нужен CORS на статике `/media/` в nginx — см. [deployment.md](deployment.md).
 
 ---
 
 ## Deploy
 
+Production runbook: **[deployment.md](deployment.md)**
+
+Кратко:
+
 ```bash
 make build
 cd backend && composer install --no-dev --optimize-autoloader
-php bin/console doctrine:migrations:migrate --no-interaction
+php bin/console doctrine:migrations:migrate --no-interaction --env=prod
 php bin/console cache:clear --env=prod
 ```
 
@@ -88,9 +93,4 @@ Node.js на сервере не нужен.
 
 ## Docker
 
-См. [../docker/README.md](../docker/README.md):
-
-```bash
-make docker-up      # MySQL + app
-make docker-mysql   # только MySQL, backend на хосте
-```
+[../docker/README.md](../docker/README.md) · [local-setup.md](local-setup.md)

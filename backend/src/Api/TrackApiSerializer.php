@@ -49,23 +49,31 @@ final class TrackApiSerializer
             'releasedAt' => $album->getReleasedAt()?->format('Y-m-d'),
             'coverUrl' => $this->mediaUrlGenerator->url($album->getCoverPath()),
         ] : null;
-        $data['stream'] = [
-            'url' => $this->mediaUrlGenerator->url($track->getAudioPath()),
-            'mimeType' => $track->getAudioMimeType(),
-            'expiresAt' => null,
-        ];
+        $data['stream'] = $this->stream($track);
         $data['publishedAt'] = $track->getCreatedAt()->format(\DateTimeInterface::ATOM);
 
         return $data;
     }
 
-    /** @return array{url: ?string, mimeType: string, expiresAt: null} */
+    /** @return array{url: ?string, mimeType: string, expiresAt: ?string} */
     public function stream(Track $track): array
     {
+        $url = $this->mediaUrlGenerator->streamUrl($track->getAudioPath());
+        $expiresAt = null;
+        if ($url !== null && str_contains($url, 'exp=')) {
+            $queryString = parse_url($url, PHP_URL_QUERY);
+            if (is_string($queryString)) {
+                parse_str($queryString, $query);
+                if (isset($query['exp'])) {
+                    $expiresAt = (new \DateTimeImmutable('@'.(int) $query['exp']))->format(\DateTimeInterface::ATOM);
+                }
+            }
+        }
+
         return [
-            'url' => $this->mediaUrlGenerator->url($track->getAudioPath()),
+            'url' => $url,
             'mimeType' => $track->getAudioMimeType(),
-            'expiresAt' => null,
+            'expiresAt' => $expiresAt,
         ];
     }
 
