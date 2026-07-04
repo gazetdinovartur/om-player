@@ -61,4 +61,55 @@ final class UploadFileValidator
             ini_get('post_max_size') ?: '?',
         );
     }
+
+    /** @var list<string> */
+    private const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+    private const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+
+    public function describeImageError(UploadedFile $file): ?string
+    {
+        $uploadError = $this->describeError($file);
+        if ($uploadError !== null) {
+            return $uploadError;
+        }
+
+        $name = $file->getClientOriginalName() ?: 'файл';
+        $mime = (string) ($file->getMimeType() ?? '');
+        if (!in_array($mime, self::IMAGE_MIMES, true)) {
+            return sprintf('«%s» — неподдерживаемый формат. Загрузите JPG, PNG или WebP.', $name);
+        }
+
+        if ($file->getSize() > self::MAX_IMAGE_BYTES) {
+            return sprintf('«%s» слишком большой (максимум 8 МБ).', $name);
+        }
+
+        return null;
+    }
+
+    public function extractCoverUploadFromRequest(mixed $filesBag): ?UploadedFile
+    {
+        if ($filesBag instanceof UploadedFile) {
+            return $filesBag->isValid() ? $filesBag : null;
+        }
+
+        if (!is_array($filesBag)) {
+            return null;
+        }
+
+        if (isset($filesBag['coverUpload']) && $filesBag['coverUpload'] instanceof UploadedFile) {
+            $file = $filesBag['coverUpload'];
+
+            return $file->isValid() ? $file : null;
+        }
+
+        foreach ($filesBag as $value) {
+            $found = $this->extractCoverUploadFromRequest($value);
+            if ($found !== null) {
+                return $found;
+            }
+        }
+
+        return null;
+    }
 }

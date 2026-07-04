@@ -48,73 +48,59 @@ final class TrackCrudController extends AbstractCrudController
 
     public function configureFields(string $pageName): iterable
     {
-        yield TextField::new('title', 'Название');
-        yield AssociationField::new('album', 'Альбом');
-        yield IntegerField::new('trackNumber', '№');
-        yield IntegerField::new('durationMs', 'Длительность')
-            ->onlyOnIndex()
-            ->formatValue(static fn (?int $value): string => self::formatDurationMs($value ?? 0));
-        yield ChoiceField::new('type', 'Тип')
-            ->setChoices(self::typeChoices())
-            ->formatValue(static fn (?TrackType $type): string => self::typeLabel($type));
-        yield BooleanField::new('published', 'Опубл.');
+        if ($pageName === Crud::PAGE_INDEX) {
+            yield TextField::new('title', 'Название');
+            yield AssociationField::new('album', 'Альбом');
+            yield IntegerField::new('trackNumber', '№');
+            yield IntegerField::new('durationMs', 'Длительность')
+                ->formatValue(static fn (?int $value): string => self::formatDurationMs($value ?? 0));
+            yield ChoiceField::new('type', 'Тип')
+                ->setChoices(self::typeChoices())
+                ->formatValue(static fn (?TrackType $type): string => self::typeLabel($type));
+            yield BooleanField::new('published', 'Опубл.');
 
-        yield TextField::new('title', 'Название')
-            ->onlyOnForms()
-            ->setColumns(8);
+            return;
+        }
+
+        yield TextField::new('title', 'Название')->setColumns(8);
         yield SlugField::new('slug', 'Slug')
-            ->onlyOnForms()
             ->setTargetFieldName('title')
             ->setColumns(4)
             ->setHelp('Используется в URL страницы трека.');
 
         yield AssociationField::new('album', 'Альбом')
-            ->onlyOnForms()
             ->autocomplete()
             ->setColumns(6);
-        yield IntegerField::new('trackNumber', '№ в альбоме')
-            ->onlyOnForms()
-            ->setColumns(2);
+        yield IntegerField::new('trackNumber', '№ в альбоме')->setColumns(2);
         yield ChoiceField::new('type', 'Тип')
-            ->onlyOnForms()
             ->setChoices(self::typeChoices())
             ->setColumns(4);
 
-        yield BooleanField::new('published', 'Опубликован')
-            ->onlyOnForms()
-            ->setColumns(3);
-        yield TextField::new('genre', 'Жанр')
-            ->onlyOnForms()
-            ->setColumns(9);
+        yield BooleanField::new('published', 'Опубликован')->setColumns(3);
+        yield TextField::new('genre', 'Жанр')->setColumns(9);
 
         if ($pageName === Crud::PAGE_EDIT) {
             yield IntegerField::new('durationMs', 'Длительность')
-                ->onlyOnForms()
                 ->setColumns(3)
                 ->setFormTypeOption('disabled', true)
                 ->formatValue(static fn (?int $value): string => self::formatDurationMs($value ?? 0));
             yield TextField::new('audioPath', 'Аудиофайл')
-                ->onlyOnForms()
                 ->setColumns(9)
                 ->setFormTypeOption('disabled', true)
                 ->setHelp('Путь задаётся при загрузке; менять вручную не нужно.');
         } else {
             yield TextField::new('audioPath', 'Путь к аудио')
-                ->onlyOnForms()
                 ->setColumns(12)
                 ->setHelp('Например: audio/2026/uuid.mp3. Удобнее загрузить файл через «Загрузить треки» — метаданные подставятся сами.');
         }
 
         yield TextareaField::new('description', 'Описание')
-            ->onlyOnForms()
             ->setColumns(12)
             ->setNumOfRows(4);
         yield TextareaField::new('credits', 'Участники')
-            ->onlyOnForms()
             ->setColumns(6)
             ->setNumOfRows(5);
         yield TextareaField::new('lyrics', 'Текст песни')
-            ->onlyOnForms()
             ->setColumns(6)
             ->setNumOfRows(5);
     }

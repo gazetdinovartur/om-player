@@ -25,8 +25,8 @@ final class ArtistCrudController extends AbstractCrudController
 
     public function configureFields(string $pageName): iterable
     {
-        yield TextField::new('name', 'Имя');
-        yield SlugField::new('slug', 'Slug')->setTargetFieldName('name');
-        yield TextareaField::new('bio', 'Биография')->hideOnIndex();
+        yield TextField::new('name', 'Имя')->setColumns(8);
+        yield SlugField::new('slug', 'Slug')->setTargetFieldName('name')->setColumns(4);
+        yield TextareaField::new('bio', 'Биография')->hideOnIndex()->setColumns(12)->setNumOfRows(6);
     }
 }

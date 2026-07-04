@@ -277,6 +277,7 @@ class DashboardController extends AbstractDashboardController
         return Assets::new()
             ->addCssFile('css/admin.css')
             ->addCssFile('css/admin-upload.css')
+            ->addJsFile('js/admin-sortable.js')
             ->addHtmlContentToHead(
                 '<link rel="preconnect" href="https://fonts.googleapis.com">'
                 . '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'

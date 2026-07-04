@@ -1,0 +1,12 @@
+{# Превью обложки на форме редактирования (без ImageField — он требует setUploadDir на формах). #}
+<div class="form-group field-text om-cover-preview">
+    <label class="form-control-label">{{ field.label|trans }}</label>
+    <div class="form-widget">
+        {% set path = entity.coverThumbPath ?? entity.coverPath ?? null %}
+        {% if path %}
+            <img src="/media/{{ path|trim('/') }}" alt="" class="om-cover-preview-img">
+        {% else %}
+            <p class="text-muted mb-0">Обложка не задана</p>
+        {% endif %}
+    </div>
+</div>

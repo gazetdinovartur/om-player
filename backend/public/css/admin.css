@@ -513,25 +513,114 @@
     overflow: visible;
 }
 
-/* Track CRUD forms */
+/* CRUD forms — единая ширина полей */
+.ea-new-Album .content-body,
+.ea-edit-Album .content-body,
+.ea-new-Playlist .content-body,
+.ea-edit-Playlist .content-body,
+.ea-new-Artist .content-body,
+.ea-edit-Artist .content-body,
 .ea-new-Track .content-body,
 .ea-edit-Track .content-body {
     max-width: 920px;
 }
 
+.ea-new-Album form .row,
+.ea-edit-Album form .row,
+.ea-new-Playlist form .row,
+.ea-edit-Playlist form .row,
+.ea-new-Artist form .row,
+.ea-edit-Artist form .row,
 .ea-new-Track form .row,
 .ea-edit-Track form .row {
     --bs-gutter-x: 1rem;
     --bs-gutter-y: 0.25rem;
 }
 
-.ea-new-Track .field-group,
-.ea-edit-Track .field-group,
-.ea-new-Track .field-form_group,
-.ea-edit-Track .field-form_group {
+.ea-new-Album .form-widget,
+.ea-edit-Album .form-widget,
+.ea-new-Playlist .form-widget,
+.ea-edit-Playlist .form-widget,
+.ea-new-Artist .form-widget,
+.ea-edit-Artist .form-widget,
+.ea-new-Track .form-widget,
+.ea-edit-Track .form-widget {
+    width: 100%;
+    max-width: none;
+}
+
+.ea-new-Album .form-group,
+.ea-edit-Album .form-group,
+.ea-new-Playlist .form-group,
+.ea-edit-Playlist .form-group,
+.ea-new-Artist .form-group,
+.ea-edit-Artist .form-group,
+.ea-new-Track .form-group,
+.ea-edit-Track .form-group {
     margin-bottom: 1rem;
 }
 
+/* Cover upload */
+.om-cover-upload-input {
+    max-width: 100%;
+}
+
+.ea .field-image img {
+    border-radius: var(--om-radius);
+    max-height: 220px;
+    width: auto;
+}
+
+/* Sortable collections */
+.field-collection-sortable .om-sort-order-input,
+.field-collection-sortable .form-group:has(.om-sort-order-input) {
+    display: none !important;
+}
+
+.om-sortable-list .accordion-item,
+.om-sortable-list .field-collection-item {
+    transition: box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.om-sortable-item--dragging {
+    opacity: 0.55;
+}
+
+.om-sortable-item--over {
+    box-shadow: inset 0 0 0 2px var(--om-accent);
+}
+
+.om-drag-handle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    margin-right: 0.5rem;
+    border-radius: 8px;
+    color: var(--om-text-muted);
+    cursor: grab;
+    user-select: none;
+    letter-spacing: -0.15em;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+}
+
+.om-drag-handle:active {
+    cursor: grabbing;
+    color: var(--om-accent);
+}
+
+.field-collection-sortable .accordion-header {
+    display: flex;
+    align-items: center;
+}
+
+.field-collection-sortable .accordion-button {
+    flex: 1;
+}
+
+/* Track CRUD forms */
 .ea-new-Track .form-check,
 .ea-edit-Track .form-check {
     padding-top: 0.35rem;

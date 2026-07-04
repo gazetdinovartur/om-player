@@ -1,0 +1,15 @@
+{% extends '@EasyAdmin/crud/form_theme.html.twig' %}
+
+{% block form_row %}
+    {% set field = form.vars.ea_vars.field|default(null) %}
+    {% if field and field.templatePath == 'admin/field/cover_preview.html.twig' %}
+        <div class="{{ field.columns ?? field.defaultColumns ?? '' }}">
+            {% include field.templatePath with {field: field, entity: form.parent.vars.data} %}
+        </div>
+        {% if field.columns|default(null) is null %}
+            <div class="flex-fill"></div>
+        {% endif %}
+    {% else %}
+        {{ parent() }}
+    {% endif %}
+{% endblock %}
