@@ -495,34 +495,147 @@
 
 .full-layout {
   display: grid;
-  grid-template-columns: minmax(280px, 340px) 1fr;
-  gap: 40px;
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  column-gap: 28px;
   align-items: start;
 }
 
+.full-column {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.full-column--now {
+  padding: 12px 14px 14px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--om-accent) 5%, var(--om-surface-elevated));
+  border: 1px solid color-mix(in srgb, var(--om-accent) 11%, var(--om-border));
+  position: sticky;
+  align-self: start;
+}
+
+.full-column--now .full-layout__heading {
+  color: color-mix(in srgb, var(--om-accent) 36%, var(--om-text-muted));
+}
+
+.full-column--tracks {
+  align-self: start;
+}
+
+.full-layout__heading {
+  margin: 0;
+  padding: 0 0 8px;
+}
+
+.full-now__deck {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 14px;
+  margin-top: 2px;
+  border-top: 1px solid color-mix(in srgb, var(--om-accent) 10%, var(--om-border));
+}
+
+.full-now__deck .progress-wrap {
+  padding: 0;
+  min-height: 32px;
+}
+
+.full-now__progress {
+  min-height: 32px;
+}
+
+.full-now__progress-placeholder {
+  min-height: 32px;
+}
+
+.full-now:has(.meta--full) .full-now__deck,
+.full-now:has(.full-cover-wrap) .full-now__deck {
+  margin-top: 6px;
+}
+
 @media (max-width: 768px) {
-  .full-layout { grid-template-columns: 1fr; }
+  .full-layout {
+    grid-template-columns: 1fr;
+    row-gap: 0;
+  }
+
+  .full-column--now {
+    position: static;
+    padding: 12px 12px 14px;
+  }
+
+  .full-column--tracks {
+    padding-top: 10px;
+    margin-top: 10px;
+    border-top: 1px solid var(--om-border);
+  }
+}
+
+:host([hero-context]) .full-layout {
+  grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
+  column-gap: 24px;
+}
+
+:host([hero-context]) .player--full {
+  padding: 20px;
+}
+
+@media (max-width: 768px) {
+  :host([hero-context]) .full-layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 .full-now {
-  position: sticky;
-  top: var(--om-header-offset);
+  position: static;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 0;
 }
 
 .full-cover-wrap {
   position: relative;
+  margin-bottom: 12px;
 }
 
 .meta--full {
-  margin-top: 4px;
+  margin: 0;
+  padding: 0;
+  min-height: 2.875rem;
+  contain: layout style;
+}
+
+.meta--full .meta-row {
+  align-items: center;
+  min-height: 2.875rem;
+}
+
+.meta--full .meta-text {
+  min-height: 2.875rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.meta--full .title {
+  font-size: 0.9375rem;
+  line-height: 1.375;
+  min-height: 1.375rem;
+}
+
+.meta--full .artist {
+  margin-top: 2px;
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  min-height: 1.0625rem;
 }
 
 .meta-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
@@ -532,9 +645,12 @@
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
+  width: 76px;
+  justify-content: flex-end;
 }
 
-.meta-action-slot--info {
+.meta-action-slot--info,
+.meta-action-slot--heart {
   width: 36px;
   height: 36px;
   flex-shrink: 0;
@@ -565,6 +681,12 @@
 
 .full-layout--info-open {
   grid-template-columns: minmax(280px, 340px) minmax(0, 1fr) minmax(240px, 300px);
+}
+
+.full-layout--info-open .track-info-panel {
+  grid-column: 3;
+  grid-row: 1;
+  align-self: start;
 }
 
 .track-info-panel {
@@ -641,6 +763,11 @@
     grid-template-columns: 1fr;
   }
 
+  .full-layout--info-open .track-info-panel {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
   .track-info-panel {
     position: static;
     max-height: none;
@@ -666,7 +793,20 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  max-height: min(70vh, 640px);
+}
+
+.full-column--tracks .full-layout__heading,
+.full-column--tracks .queue--album {
+  padding-left: 2px;
+  padding-right: 2px;
+}
+
+@media (min-width: 769px) {
+  .full-column--tracks .full-layout__heading,
+  .full-column--tracks .queue--album {
+    padding-left: 2px;
+    padding-right: 0;
+  }
 }
 
 .queue--scroll {
@@ -679,24 +819,12 @@
 }
 
 :host([mode='full']) .queue--scroll {
-  scrollbar-width: thin;
-  scrollbar-color: var(--om-accent) transparent;
-}
-
-:host([mode='full']) .queue--scroll::-webkit-scrollbar {
-  width: 8px;
-}
-
-:host([mode='full']) .queue--scroll::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--om-accent) 45%, transparent);
-  border-radius: 999px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-
-:host([mode='full']) .queue--scroll::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--om-accent) 65%, transparent);
-  background-clip: padding-box;
+  overflow: visible;
+  flex: none;
+  min-height: auto;
+  overscroll-behavior: auto;
+  scrollbar-gutter: auto;
+  padding-right: 0;
 }
 
 .queue-title {
@@ -838,7 +966,7 @@
 }
 
 .btn-start-album {
-  margin-top: 18px;
+  margin-top: 0;
   width: 100%;
   border: none;
   border-radius: 999px;
@@ -1497,14 +1625,146 @@
 }
 
 .queue--album .queue-item {
-  grid-template-columns: 32px minmax(0, 1fr) auto;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 11px 12px;
+}
+
+.queue--album .queue-title-btn {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.queue--album .queue-title-text {
+  font-size: 0.9375rem;
+  line-height: 1.375;
+}
+
+.queue-row-tail {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.btn--queue-more {
+  display: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  flex-shrink: 0;
+  color: var(--om-text-muted);
+}
+
+.btn--queue-more:hover {
+  color: var(--om-text);
+  background: var(--om-surface-hover);
 }
 
 .queue--album .queue-actions {
-  display: grid;
-  grid-template-columns: 32px 32px 32px 32px minmax(2.75rem, auto);
-  gap: 2px;
+  display: inline-flex;
   align-items: center;
+  gap: 0;
+  flex-shrink: 0;
+}
+
+@media (min-width: 769px) {
+  .queue--album .queue-actions {
+    display: grid;
+    grid-template-columns: 32px 32px 32px 32px;
+    gap: 2px;
+  }
+
+  .queue--album .queue-duration {
+    margin-left: 8px;
+    font-size: 0.8125rem;
+    color: var(--om-text-muted);
+    font-variant-numeric: tabular-nums;
+    min-width: 2.75rem;
+    text-align: right;
+  }
+}
+
+@media (max-width: 768px) {
+  .queue--album .queue-item {
+    padding: 9px 8px;
+    position: relative;
+  }
+
+  .queue--album .queue-title-text {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .queue--album .queue-duration {
+    font-size: 0.75rem;
+    color: var(--om-text-muted);
+    font-variant-numeric: tabular-nums;
+    min-width: 2.35rem;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .queue-row-tail {
+    min-width: calc(2.35rem + 32px);
+  }
+
+  .btn--queue-more {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+  }
+
+  .queue--album .queue-actions {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    z-index: 2;
+    padding: 2px 6px 2px 2px;
+    border-radius: 999px;
+    background: var(--om-surface-elevated);
+    border: 1px solid var(--om-border);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-50%) translateX(6px);
+    transition:
+      opacity 0.18s var(--om-ease),
+      transform 0.18s var(--om-ease);
+  }
+
+  .queue--album .queue-item.is-actions-open {
+    z-index: 3;
+  }
+
+  .queue--album .queue-item.is-actions-open .queue-actions {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(-50%) translateX(0);
+  }
+
+  .queue--album .queue-item.is-actions-open .btn--queue-more {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .queue--album .queue-item.is-actions-open .queue-duration {
+    opacity: 0;
+  }
+
+  .queue--album .queue-action-slot,
+  .queue--album .queue-actions .btn--queue-add,
+  .queue--album .queue-actions .btn--queue-next,
+  .queue--album .queue-actions .btn--track-info,
+  .queue--album .queue-actions .btn--heart {
+    width: 28px;
+    height: 28px;
+  }
 }
 
 .queue-action-slot {

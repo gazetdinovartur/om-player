@@ -58,50 +58,60 @@
     document.addEventListener('turbo:before-visit', flushAnalytics);
   }
 
-  const SILENT_WAV =
-    'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
-
   function unlockAudioGesture() {
-    const audio = document.getElementById('om-audio-engine');
-    if (!audio) {
-      getGlobalPlayer()?.unlockPlaybackPublic?.();
-      return;
-    }
+    getGlobalPlayer()?.unlockPlaybackPublic?.();
+    getAlbumPagePlayer()?.unlockPlaybackPublic?.();
+  }
 
-    if (!audio.paused && !audio.ended) {
-      audio.dataset.omPlaybackUnlocked = '1';
-      getGlobalPlayer()?.unlockPlaybackPublic?.();
-      return;
-    }
+  function getAlbumPagePlayer() {
+    return document.querySelector('om-player.album-page__player')
+      || document.querySelector('.player-shell om-player[mode="full"]');
+  }
 
-    const savedSrc = audio.currentSrc || audio.src;
-    if (savedSrc && savedSrc !== SILENT_WAV) {
-      audio.dataset.omPlaybackUnlocked = '1';
-      getGlobalPlayer()?.unlockPlaybackPublic?.();
-      return;
-    }
-
-    const wasMuted = audio.muted;
-    audio.muted = true;
-
-    const finish = (ok) => {
-      audio.muted = wasMuted;
-      if (ok) audio.dataset.omPlaybackUnlocked = '1';
-      getGlobalPlayer()?.unlockPlaybackPublic?.();
+  function waitForAudioUnlock(timeoutMs = 200) {
+    const engineUnlocked = () => {
+      const audio = document.getElementById('om-audio-engine');
+      return audio?.dataset.omPlaybackUnlocked === '1';
     };
+    if (engineUnlocked()) return Promise.resolve();
 
-    audio.src = SILENT_WAV;
-    audio
-      .play()
-      .then(() => {
-        if (!audio.paused) audio.pause();
-        if (audio.currentSrc === SILENT_WAV) {
-          audio.removeAttribute('src');
-          audio.load();
+    return new Promise((resolve) => {
+      const started = performance.now();
+      const tick = () => {
+        if (engineUnlocked() || performance.now() - started >= timeoutMs) {
+          resolve();
+          return;
         }
-        finish(true);
-      })
-      .catch(() => finish(false));
+        requestAnimationFrame(tick);
+      };
+      tick();
+    });
+  }
+
+  async function startAlbumPlayback(slug, tracks) {
+    await ensurePlayerScript();
+    unlockAudioGesture();
+    await waitForAudioUnlock();
+    const gp = getGlobalPlayer();
+    if (!gp?.playAlbumPublic) return false;
+    gp.playAlbumPublic(slug, tracks?.length ? tracks : undefined);
+    getAlbumPagePlayer()?.requestUpdate?.();
+    return true;
+  }
+
+  function playAlbum(slug) {
+    if (!slug) return;
+    unlockAudioGesture();
+    const tracks = readTracksJson('album-tracks-json');
+
+    void startAlbumPlayback(slug, tracks).then((ok) => {
+      if (ok) return;
+      void ensurePlayerReady({ skipRestore: true }).then(async (p) => {
+        unlockAudioGesture();
+        await waitForAudioUnlock();
+        p?.playAlbumPublic?.(slug, tracks?.length ? tracks : undefined);
+      });
+    });
   }
 
   function bindPlayGestureUnlock(btn) {
@@ -131,44 +141,17 @@
     const tracks = readTracksJson(sourceId);
     if (!tracks) return;
     unlockAudioGesture();
-    void ensurePlayerReady({ skipRestore: true }).then((p) => p?.playAlbumPublic?.('', tracks));
+    void waitForAudioUnlock().then(() =>
+      ensurePlayerReady({ skipRestore: true }).then((p) => p?.playAlbumPublic?.('', tracks)),
+    );
   }
 
   function playTrack(slug) {
     if (!slug) return;
     unlockAudioGesture();
-    void ensurePlayerReady({ skipRestore: true }).then((p) => p?.loadTrackPublic?.(slug, 0, true));
-  }
-
-  function getAlbumPagePlayer() {
-    return document.querySelector('om-player.album-page__player')
-      || document.querySelector('.player-shell om-player[mode="full"]');
-  }
-
-  async function startAlbumPlayback(slug, tracks) {
-    await ensurePlayerScript();
-    const pagePlayer = getAlbumPagePlayer();
-    if (pagePlayer?.playAlbumPublic && tracks?.length) {
-      pagePlayer.unlockPlaybackPublic?.();
-      pagePlayer.playAlbumPublic(slug, tracks);
-      getGlobalPlayer()?.showPublic?.();
-      return true;
-    }
-    return false;
-  }
-
-  function playAlbum(slug) {
-    if (!slug) return;
-    unlockAudioGesture();
-    const tracks = readTracksJson('album-tracks-json');
-
-    void startAlbumPlayback(slug, tracks).then((ok) => {
-      if (ok) return;
-      void ensurePlayerReady({ skipRestore: true }).then((p) => {
-        p?.unlockPlaybackPublic?.();
-        p?.playAlbumPublic?.(slug, tracks ?? undefined);
-      });
-    });
+    void waitForAudioUnlock().then(() =>
+      ensurePlayerReady({ skipRestore: true }).then((p) => p?.loadTrackPublic?.(slug, 0, true)),
+    );
   }
 
   function bindPlayButtons() {
@@ -189,10 +172,6 @@
       if (btn.dataset.omBound) return;
       btn.dataset.omBound = '1';
       bindPlayGestureUnlock(btn);
-      btn.addEventListener('pointerdown', () => {
-        unlockAudioGesture();
-        getAlbumPagePlayer()?.unlockPlaybackPublic?.();
-      }, { passive: true });
       btn.addEventListener('click', (e) => {
         e.preventDefault();
         const slug = btn.getAttribute('data-om-play-album');

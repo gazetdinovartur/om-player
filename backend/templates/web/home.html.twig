@@ -67,7 +67,7 @@
 {% if albums is not empty %}
 <section class="section">
     <div class="section__head">
-        <h2 class="section__title">Альбомы</h2>
+        <h2 class="section__title">{{ latestAlbum ? 'Другие альбомы' : 'Альбомы' }}</h2>
         {% if hasMoreAlbums %}
             <a class="section__more" href="{{ path('web_music_catalog') }}">Показать все</a>
         {% endif %}

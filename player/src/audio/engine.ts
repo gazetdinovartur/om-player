@@ -57,12 +57,17 @@ export class AudioEngine {
       audio.muted = wasMuted;
       if (ok) {
         this.markPlaybackUnlocked(audio);
+      } else {
+        this.clearPlaybackUnlocked(audio);
       }
     };
 
     audio.src = SILENT_WAV;
-    void audio
-      .play()
+    const playAttempt = audio.play();
+    if (playAttempt !== undefined) {
+      this.markPlaybackUnlocked(audio);
+    }
+    void playAttempt
       .then(() => {
         if (!audio.paused) {
           this.runIntentionalPause(() => {

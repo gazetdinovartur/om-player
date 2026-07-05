@@ -1958,6 +1958,7 @@ html[data-theme='light'] .about-author__name-link--moon {
     min-height: 260px;
     padding: 0;
     color: #fff;
+    transition: min-height 0.32s ease;
 }
 
 .album-hero__cover {
@@ -1994,6 +1995,7 @@ html[data-theme='light'] .about-author__name-link--moon {
     box-shadow: none;
     border: none;
     border-right: 1px solid rgba(255, 255, 255, 0.1);
+    transition: min-height 0.32s ease;
 }
 
 .album-card__placeholder--hero {
@@ -2066,6 +2068,11 @@ html[data-theme='light'] .about-author__name-link--moon {
     border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+.album-hero__description-wrap {
+    overflow: hidden;
+    transition: max-height 0.32s ease;
+}
+
 .album-hero__description {
     margin: 0;
     line-height: 1.55;
@@ -2077,9 +2084,13 @@ html[data-theme='light'] .about-author__name-link--moon {
     white-space: pre-wrap;
 }
 
-.album-hero__description.is-clamped:not(.is-expanded) {
-    max-height: calc(1.55em * 2);
-    overflow: hidden;
+@media (prefers-reduced-motion: reduce) {
+    .album-hero__description-wrap,
+    .album-hero__content,
+    .album-hero__cover img,
+    .album-hero__cover .album-card__placeholder {
+        transition: none;
+    }
 }
 
 @media (max-width: 768px) {
@@ -2151,8 +2162,12 @@ html[data-theme='light'] .about-author__name-link--moon {
 
 .album-page__player {
     display: block;
-    min-height: 440px;
+    min-height: 0;
     --om-header-offset: calc(var(--site-header-h) + 28px);
+}
+
+.album-page__player[hero-context] {
+    min-height: 0;
 }
 
 .player-shell--narrow { max-width: 720px; }

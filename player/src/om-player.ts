@@ -11,6 +11,7 @@ import {
   iconHeartFilled,
   iconInfo,
   iconListMusic,
+  iconMore,
   iconNext,
   iconPause,
   iconPlay,
@@ -61,6 +62,7 @@ export class OmPlayer extends LitElement {
     albumCover: { attribute: 'album-cover' },
     albumTitle: { attribute: 'album-title' },
     albumArtist: { attribute: 'album-artist' },
+    heroContext: { type: Boolean, attribute: 'hero-context' },
     autoPlay: { type: Boolean, attribute: 'auto-play' },
     loading: { state: true },
     error: { state: true },
@@ -78,6 +80,7 @@ export class OmPlayer extends LitElement {
     trackInfoDetail: { state: true },
     trackInfoError: { state: true },
     trackInfoSlug: { state: true },
+    queueRowActionsSlug: { state: true },
   };
 
   declare mode: 'embed' | 'mini' | 'full';
@@ -89,6 +92,7 @@ export class OmPlayer extends LitElement {
   declare albumCover: string;
   declare albumTitle: string;
   declare albumArtist: string;
+  declare heroContext: boolean;
   declare autoPlay: boolean;
   declare loading: boolean;
   declare error: string;
@@ -106,6 +110,7 @@ export class OmPlayer extends LitElement {
   declare trackInfoDetail: TrackDetail | null;
   declare trackInfoError: string;
   declare trackInfoSlug: string | null;
+  declare queueRowActionsSlug: string | null;
 
   constructor() {
     super();
@@ -135,7 +140,17 @@ export class OmPlayer extends LitElement {
     this.trackInfoDetail = null;
     this.trackInfoError = '';
     this.trackInfoSlug = null;
+    this.queueRowActionsSlug = null;
   }
+
+  private queueActionsOutsideHandler = (e: Event): void => {
+    if (!this.queueRowActionsSlug || this.mode !== 'full') return;
+    const target = e.target as Element;
+    if (target.closest?.('.btn--queue-more')) return;
+    if (target.closest?.('.queue--album .is-actions-open .queue-actions')) return;
+    this.queueRowActionsSlug = null;
+    this.requestUpdate();
+  };
 
   private store = getPlayerStore();
   private favorites = getFavoritesStore();
@@ -243,6 +258,9 @@ export class OmPlayer extends LitElement {
       if (this.queueExpanded) this.closeQueueExpanded();
     };
     document.addEventListener('keydown', this.escapeHandler);
+    if (this.mode === 'full') {
+      document.addEventListener('click', this.queueActionsOutsideHandler, true);
+    }
   }
 
   disconnectedCallback(): void {
@@ -257,6 +275,7 @@ export class OmPlayer extends LitElement {
       document.removeEventListener('keydown', this.escapeHandler);
       this.escapeHandler = null;
     }
+    document.removeEventListener('click', this.queueActionsOutsideHandler, true);
     this.clearQueueDrag();
     this.setBodyScrollLock(false);
     this.unsub?.();
@@ -613,8 +632,8 @@ export class OmPlayer extends LitElement {
 
     if (this.pageTracks.length === 0 && !this.loadPageTracksFromPage()) return;
 
+    this.queueRowActionsSlug = null;
     this.store.engine.unlockUserGesture();
-    this.loading = true;
     this.error = '';
     try {
       const tracks = await this.resolveQueueStreams(this.pageTracks);
@@ -623,8 +642,6 @@ export class OmPlayer extends LitElement {
       this.visible = true;
     } catch {
       if (this.isConnected) this.error = 'Трек недоступен';
-    } finally {
-      if (this.isConnected) this.loading = false;
     }
   }
 
@@ -1050,6 +1067,12 @@ export class OmPlayer extends LitElement {
     `;
   }
 
+  private toggleQueueRowActions(slug: string, e: Event): void {
+    e.preventDefault();
+    e.stopPropagation();
+    this.queueRowActionsSlug = this.queueRowActionsSlug === slug ? null : slug;
+  }
+
   private renderAlbumTrackList(): unknown {
     const tracks = this.pageTracks;
     return html`
@@ -1059,8 +1082,9 @@ export class OmPlayer extends LitElement {
           : tracks.map((t, i) => {
               const isActive = t.slug === this.current?.slug;
               const inQueue = this.store.hasInQueue(t.slug);
+              const actionsOpen = this.queueRowActionsSlug === t.slug;
               return html`
-                <li role="listitem" class="queue-item${isActive ? ' is-active' : ''}">
+                <li role="listitem" class="queue-item${isActive ? ' is-active' : ''}${actionsOpen ? ' is-actions-open' : ''}">
                   <span class="queue-index" @pointerdown=${() => this.store.engine.unlockUserGesture()} @click=${() => this.playPageTrack(i)}>
                     ${isActive && this.playing
                       ? html`<span class="queue-playing">${renderVisualizer(true)}</span>`
@@ -1069,36 +1093,45 @@ export class OmPlayer extends LitElement {
                   <button type="button" class="queue-title-btn" @pointerdown=${() => this.store.engine.unlockUserGesture()} @click=${() => this.playPageTrack(i)}>
                     <span class="queue-title-text">${t.title}</span>
                   </button>
-                  <span class="queue-actions">
-                    <span class="queue-action-slot">
-                      <button
-                        type="button"
-                        class="btn btn--queue-add${inQueue ? ' is-added' : ''}"
-                        @click=${(e: Event) => {
-                          e.stopPropagation();
-                          if (inQueue) void this.removeTrackFromQueue(t.slug);
-                          else void this.addTrackToQueue(t, false);
-                        }}
-                        aria-label=${inQueue ? 'Убрать из очереди' : 'Добавить в очередь'}
-                        title=${inQueue ? 'Убрать из очереди' : 'В очередь'}
-                      >${inQueue ? iconCheck : iconPlus}</button>
-                    </span>
-                    <span class="queue-action-slot">
-                      <button
-                        type="button"
-                        class="btn btn--queue-next"
-                        @click=${(e: Event) => {
-                          e.stopPropagation();
-                          void this.addTrackToQueue(t, true);
-                        }}
-                        aria-label="Играть следующим"
-                        title="Следующим"
-                      >${iconQueueNext}</button>
-                    </span>
-                    <span class="queue-action-slot">${this.renderTrackInfoButton(t.slug)}</span>
-                    <span class="queue-action-slot">${this.renderHeart(t.slug)}</span>
+                  <div class="queue-row-tail">
                     <span class="queue-duration">${formatMs(t.durationMs)}</span>
-                  </span>
+                    <button
+                      type="button"
+                      class="btn btn--queue-more"
+                      @click=${(e: Event) => this.toggleQueueRowActions(t.slug, e)}
+                      aria-label="Действия с треком"
+                      aria-expanded=${actionsOpen ? 'true' : 'false'}
+                    >${iconMore}</button>
+                    <span class="queue-actions">
+                      <span class="queue-action-slot">
+                        <button
+                          type="button"
+                          class="btn btn--queue-add${inQueue ? ' is-added' : ''}"
+                          @click=${(e: Event) => {
+                            e.stopPropagation();
+                            if (inQueue) void this.removeTrackFromQueue(t.slug);
+                            else void this.addTrackToQueue(t, false);
+                          }}
+                          aria-label=${inQueue ? 'Убрать из очереди' : 'Добавить в очередь'}
+                          title=${inQueue ? 'Убрать из очереди' : 'В очередь'}
+                        >${inQueue ? iconCheck : iconPlus}</button>
+                      </span>
+                      <span class="queue-action-slot">
+                        <button
+                          type="button"
+                          class="btn btn--queue-next"
+                          @click=${(e: Event) => {
+                            e.stopPropagation();
+                            void this.addTrackToQueue(t, true);
+                          }}
+                          aria-label="Играть следующим"
+                          title="Следующим"
+                        >${iconQueueNext}</button>
+                      </span>
+                      <span class="queue-action-slot">${this.renderTrackInfoButton(t.slug)}</span>
+                      <span class="queue-action-slot">${this.renderHeart(t.slug)}</span>
+                    </span>
+                  </div>
                 </li>
               `;
             })}
@@ -1395,46 +1428,69 @@ export class OmPlayer extends LitElement {
     if (this.mode === 'full') {
       const duration = this.current?.durationMs ?? 0;
       const idle = !this.current && !this.loading;
+      const hero = this.heroContext;
+      const showMeta = !hero || !!this.current;
       return html`
-        <div class="player player--full" role="region" aria-label="Плеер альбома">
-          ${this.loading ? html`<div class="state">Загрузка треков…</div>` : nothing}
+        <div class="player player--full${hero ? ' player--hero-context' : ''}" role="region" aria-label="Плеер альбома">
+          ${this.loading && !this.current && this.pageTracks.length === 0 ? html`<div class="state">Загрузка треков…</div>` : nothing}
           ${this.error ? html`<div class="state state--error">${this.error}</div>` : nothing}
           <div class="full-layout${this.trackInfoOpen ? ' full-layout--info-open' : ''}">
-            <aside class="full-now">
-              <div class="full-cover-wrap">
-                ${this.renderCover('lg')}
-                ${renderVisualizer(this.playing)}
-              </div>
-              <div class="meta meta--full${idle ? ' meta--idle' : ''}">
-                <div class="meta-row">
-                  <div class="meta-text">
-                    <div class="title">${this.displayTitle}</div>
-                    <div class="artist">${this.displayArtist}</div>
+            <section class="full-column full-column--now">
+              <h2 class="queue-title full-layout__heading">Сейчас играет</h2>
+              <aside class="full-now">
+                ${hero
+                  ? nothing
+                  : html`
+                      <div class="full-cover-wrap">
+                        ${this.renderCover('lg')}
+                        ${renderVisualizer(this.playing)}
+                      </div>
+                    `}
+                ${showMeta
+                  ? html`
+                      <div class="meta meta--full${idle ? ' meta--idle' : ''}">
+                        <div class="meta-row">
+                          <div class="meta-text">
+                            <div class="title">${this.displayTitle}</div>
+                            <div class="artist">${this.displayArtist || '\u00a0'}</div>
+                          </div>
+                          <div class="meta-actions">
+                            <span class="meta-action-slot meta-action-slot--info">
+                              ${this.current ? this.renderTrackInfoButton(this.current.slug) : nothing}
+                            </span>
+                            <span class="meta-action-slot meta-action-slot--heart">
+                              ${this.renderHeart(this.current?.slug)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    `
+                  : nothing}
+                <div class="full-now__deck">
+                  <div class="controls controls--center">
+                    <button class="btn${this.store.shuffle ? ' is-active' : ''}" @click=${() => this.store.toggleShuffle()} aria-label="Случайный порядок" title="Случайный порядок">${iconShuffle}</button>
+                    <button class="btn" @click=${() => this.store.prev()} aria-label="Предыдущий">${iconPrev}</button>
+                    ${this.renderPlayButton('lg')}
+                    <button class="btn" @click=${() => this.store.next()} aria-label="Следующий">${iconNext}</button>
+                    <button class="btn${this.store.repeat !== 'off' ? ' is-active' : ''}" @click=${() => this.store.cycleRepeat()} aria-label=${this.repeatAriaLabel()} title=${this.repeatAriaLabel()}>${this.repeatIcon(this.store.repeat)}</button>
                   </div>
-                  <div class="meta-actions">
-                    <span class="meta-action-slot meta-action-slot--info">
-                      ${this.current ? this.renderTrackInfoButton(this.current.slug) : nothing}
-                    </span>
-                    ${this.renderHeart(this.current?.slug)}
+                  <div class="full-now__progress">
+                    ${this.current
+                      ? this.renderProgress(duration)
+                      : html`<div class="full-now__progress-placeholder" aria-hidden="true"></div>`}
                   </div>
+                  ${idle && this.album && !hero
+                    ? html`<button class="btn-start-album" @pointerdown=${() => this.store.engine.unlockUserGesture()} @click=${() => this.loadQueue(true)}>Слушать альбом</button>`
+                    : nothing}
                 </div>
+              </aside>
+            </section>
+            <section class="full-column full-column--tracks">
+              <h2 class="queue-title full-layout__heading">Треки</h2>
+              <div class="full-tracks">
+                ${this.renderAlbumTrackList()}
               </div>
-              <div class="controls controls--center">
-                <button class="btn${this.store.shuffle ? ' is-active' : ''}" @click=${() => this.store.toggleShuffle()} aria-label="Случайный порядок" title="Случайный порядок">${iconShuffle}</button>
-                <button class="btn" @click=${() => this.store.prev()} aria-label="Предыдущий">${iconPrev}</button>
-                ${this.renderPlayButton('lg')}
-                <button class="btn" @click=${() => this.store.next()} aria-label="Следующий">${iconNext}</button>
-                <button class="btn${this.store.repeat !== 'off' ? ' is-active' : ''}" @click=${() => this.store.cycleRepeat()} aria-label=${this.repeatAriaLabel()} title=${this.repeatAriaLabel()}>${this.repeatIcon(this.store.repeat)}</button>
-              </div>
-              ${this.current ? this.renderProgress(duration) : nothing}
-              ${idle && this.album
-                ? html`<button class="btn-start-album" @pointerdown=${() => this.store.engine.unlockUserGesture()} @click=${() => this.loadQueue(true)}>Слушать альбом</button>`
-                : nothing}
-            </aside>
-            <div class="full-tracks">
-              <h2 class="queue-title">Треки</h2>
-              ${this.renderAlbumTrackList()}
-            </div>
+            </section>
             ${this.renderTrackInfoPanel()}
           </div>
         </div>

@@ -45,7 +45,9 @@
                 </p>
                 {% if album.description %}
                     <div class="album-hero__description-block" data-album-description>
-                        <p class="album-hero__description" data-description-text>{{ album.description }}</p>
+                        <div class="album-hero__description-wrap" data-description-wrap>
+                            <p class="album-hero__description" data-description-text>{{ album.description }}</p>
+                        </div>
                         <button type="button" class="album-hero__description-toggle" data-description-toggle hidden aria-expanded="false">Ещё</button>
                     </div>
                 {% endif %}
@@ -64,6 +66,7 @@
     <script type="application/json" id="album-tracks-json">{{ albumTracksJson|raw }}</script>
     <om-player
         mode="full"
+        hero-context
         album="{{ album.slug }}"
         data-queue-source="album-tracks-json"
         {% if album.coverPath %}album-cover="{{ asset('media/' ~ album.coverPath) }}"{% endif %}
