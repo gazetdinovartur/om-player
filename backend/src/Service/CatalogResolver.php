@@ -104,9 +104,11 @@ final class CatalogResolver
         ExtractedAudioMetadata $meta,
         string $audioPath,
         bool $published = false,
+        ?Artist $resolvedArtist = null,
+        ?Album $resolvedAlbum = null,
     ): Track {
-        $artist = $this->resolveArtist($meta->artist);
-        $album = $this->resolveAlbum($meta->album, $artist, $meta);
+        $artist = $resolvedArtist ?? $this->resolveArtist($meta->artist);
+        $album = $resolvedAlbum ?? $this->resolveAlbum($meta->album, $artist, $meta);
 
         $track = (new Track())
             ->setTitle($meta->title)

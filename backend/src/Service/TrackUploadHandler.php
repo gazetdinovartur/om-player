@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Entity\Album;
+use App\Entity\Artist;
 use App\Entity\Track;
 use Doctrine\ORM\EntityManagerInterface;
 use League\Flysystem\FilesystemOperator;
@@ -98,6 +100,25 @@ final class TrackUploadHandler
             throw new \InvalidArgumentException('Укажите название альбома — все треки пакета сохраняются в один альбом.');
         }
 
+        $artist = $this->catalogResolver->resolveArtist($sharedArtist !== '' ? $sharedArtist : null);
+        $year = isset($defaults['year']) && $defaults['year'] !== '' ? (int) $defaults['year'] : null;
+        $releasedAt = $year !== null ? new \DateTimeImmutable(sprintf('%04d-01-01', $year)) : null;
+        $albumMeta = new ExtractedAudioMetadata(
+            title: $sharedAlbum,
+            artist: $sharedArtist !== '' ? $sharedArtist : null,
+            album: $sharedAlbum,
+            trackNumber: null,
+            year: $year,
+            releasedAt: $releasedAt,
+            durationMs: 0,
+            genre: null,
+            embeddedCover: null,
+            mimeType: 'audio/mpeg',
+        );
+        $album = $this->catalogResolver->resolveAlbum($sharedAlbum, $artist, $albumMeta);
+        $this->em->flush();
+
+        $tokens = [];
         $tracks = [];
         foreach ($items as $item) {
             $token = (string) ($item['token'] ?? '');
@@ -114,10 +135,22 @@ final class TrackUploadHandler
                 }
             }
 
-            $tracks[] = $this->confirmStagedUpload($token, $form, flush: false);
+            $tracks[] = $this->confirmStagedUpload(
+                $token,
+                $form,
+                flush: false,
+                resolvedArtist: $artist,
+                resolvedAlbum: $album,
+                cleanupStaging: false,
+            );
+            $tokens[] = $token;
         }
 
         $this->em->flush();
+
+        foreach ($tokens as $token) {
+            $this->cleanupStaging($token);
+        }
 
         return $tracks;
     }
@@ -159,8 +192,14 @@ final class TrackUploadHandler
     /**
      * @param array{title?: string, artist?: string, album?: string, trackNumber?: string, year?: string, publish?: bool, publish_album?: bool} $form
      */
-    public function confirmStagedUpload(string $token, array $form, bool $flush = true): Track
-    {
+    public function confirmStagedUpload(
+        string $token,
+        array $form,
+        bool $flush = true,
+        ?Artist $resolvedArtist = null,
+        ?Album $resolvedAlbum = null,
+        bool $cleanupStaging = true,
+    ): Track {
         $staged = $this->resolveStagedFile($token);
         $metaJson = json_decode((string) file_get_contents($staged['json']), true, 512, JSON_THROW_ON_ERROR);
         $meta = $this->metadataExtractor->extract($staged['path'], $metaJson['originalName']);
@@ -177,7 +216,13 @@ final class TrackUploadHandler
         fclose($stream);
 
         $publish = !empty($form['publish']);
-        $track = $this->catalogResolver->buildTrackFromMetadata($meta, $audioRelative, $publish);
+        $track = $this->catalogResolver->buildTrackFromMetadata(
+            $meta,
+            $audioRelative,
+            $publish,
+            $resolvedArtist,
+            $resolvedAlbum,
+        );
 
         if ($meta->embeddedCover !== null) {
             if ($track->getAlbum() !== null) {
@@ -199,7 +244,9 @@ final class TrackUploadHandler
         if ($flush) {
             $this->em->flush();
         }
-        $this->cleanupStaging($token);
+        if ($cleanupStaging) {
+            $this->cleanupStaging($token);
+        }
 
         return $track;
     }
