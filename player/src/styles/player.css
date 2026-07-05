@@ -534,10 +534,19 @@
   flex-shrink: 0;
 }
 
-.btn--track-info,
-.btn--track-info-close {
+.meta-action-slot--info {
   width: 36px;
   height: 36px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn--track-info,
+.btn--track-info-close {
+  width: 32px;
+  height: 32px;
   padding: 0;
   border-radius: 999px;
   color: var(--om-text-secondary);
@@ -1492,7 +1501,25 @@
 }
 
 .queue--album .queue-actions {
+  display: grid;
+  grid-template-columns: 32px 32px 32px 32px minmax(2.75rem, auto);
   gap: 2px;
+  align-items: center;
+}
+
+.queue-action-slot {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.queue--album .queue-actions .btn--track-info,
+.queue--album .queue-actions .btn--heart {
+  width: 32px;
+  height: 32px;
 }
 
 .btn--queue-add,

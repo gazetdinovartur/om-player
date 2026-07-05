@@ -16,51 +16,47 @@
 <section class="album-hero"{% if album.coverPath %} style="--album-cover: url('{{ asset('media/' ~ album.coverPath) }}')"{% endif %}>
     <div class="album-hero__backdrop" aria-hidden="true"></div>
     <div class="album-hero__content">
-        <div class="album-hero__main">
-            <div class="album-hero__cover">
-                <span class="album-hero__type">{{ album.type.label }}</span>
-                {% if album.coverPath %}
-                    <img src="{{ asset('media/' ~ album.coverPath) }}" alt="{{ album.title }}" loading="eager">
-                {% else %}
-                    <div class="album-card__placeholder album-card__placeholder--hero"></div>
+        <div class="album-hero__cover">
+            <span class="album-hero__type">{{ album.type.label }}</span>
+            {% if album.coverPath %}
+                <img src="{{ asset('media/' ~ album.coverPath) }}" alt="{{ album.title }}" loading="eager">
+            {% else %}
+                <div class="album-card__placeholder album-card__placeholder--hero"></div>
+            {% endif %}
+        </div>
+        <div class="album-hero__panel">
+            <div class="album-hero__panel-main">
+                <h1 class="album-hero__title">{{ album.title }}</h1>
+                <p class="album-hero__artist"><span class="album-hero__copyright-mark" aria-hidden="true">©</span> {{ album.artist.name }}</p>
+                <p class="album-hero__meta">
+                    {%- set trackCount = album.publishedTrackCount -%}
+                    {%- set durationMs = album.publishedTotalDurationMs -%}
+                    {%- if album.releasedAt -%}
+                        <span class="album-hero__meta-item">{{ album.releasedAt|release_date }}</span>
+                    {%- endif -%}
+                    {%- if trackCount > 0 -%}
+                        {%- if album.releasedAt -%}<span class="album-hero__meta-sep" aria-hidden="true">·</span>{%- endif -%}
+                        <span class="album-hero__meta-item">{{ trackCount }} {{ trackCount == 1 ? 'трек' : (trackCount < 5 ? 'трека' : 'треков') }}</span>
+                    {%- endif -%}
+                    {%- if durationMs > 0 -%}
+                        <span class="album-hero__meta-sep" aria-hidden="true">·</span>
+                        <span class="album-hero__meta-item">{{ durationMs|duration_ms }}</span>
+                    {%- endif -%}
+                </p>
+                {% if album.description %}
+                    <div class="album-hero__description-block" data-album-description>
+                        <p class="album-hero__description" data-description-text>{{ album.description }}</p>
+                        <button type="button" class="album-hero__description-toggle" data-description-toggle hidden aria-expanded="false">Ещё</button>
+                    </div>
                 {% endif %}
             </div>
-            <div class="album-hero__info">
-                <div class="album-hero__head">
-                    <div class="album-hero__copy">
-                        <h1 class="album-hero__title">{{ album.title }}</h1>
-                        <p class="album-hero__artist"><span class="album-hero__copyright-mark" aria-hidden="true">©</span> {{ album.artist.name }}</p>
-                        <p class="album-hero__meta">
-                            {%- set trackCount = album.publishedTrackCount -%}
-                            {%- set durationMs = album.publishedTotalDurationMs -%}
-                            {%- if album.releasedAt -%}
-                                <span class="album-hero__meta-item">{{ album.releasedAt|release_date }}</span>
-                            {%- endif -%}
-                            {%- if trackCount > 0 -%}
-                                {%- if album.releasedAt -%}<span class="album-hero__meta-sep" aria-hidden="true">·</span>{%- endif -%}
-                                <span class="album-hero__meta-item">{{ trackCount }} {{ trackCount == 1 ? 'трек' : (trackCount < 5 ? 'трека' : 'треков') }}</span>
-                            {%- endif -%}
-                            {%- if durationMs > 0 -%}
-                                <span class="album-hero__meta-sep" aria-hidden="true">·</span>
-                                <span class="album-hero__meta-item">{{ durationMs|duration_ms }}</span>
-                            {%- endif -%}
-                        </p>
-                    </div>
-                    <div class="album-hero__actions">
-                        <button type="button" class="btn btn--primary" data-om-play-album="{{ album.slug }}">
-                            <svg class="btn__icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.14v13.72L19 12 8 5.14z"/></svg>
-                            Слушать
-                        </button>
-                    </div>
-                </div>
+            <div class="album-hero__panel-footer">
+                <button type="button" class="btn btn--primary album-hero__play" data-om-play-album="{{ album.slug }}">
+                    <svg class="btn__icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.14v13.72L19 12 8 5.14z"/></svg>
+                    Слушать
+                </button>
             </div>
         </div>
-        {% if album.description %}
-            <div class="album-hero__description-block" data-album-description>
-                <p class="album-hero__description" data-description-text>{{ album.description }}</p>
-                <button type="button" class="album-hero__description-toggle" data-description-toggle hidden aria-expanded="false">Ещё</button>
-            </div>
-        {% endif %}
     </div>
 </section>
 

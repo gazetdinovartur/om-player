@@ -1070,29 +1070,33 @@ export class OmPlayer extends LitElement {
                     <span class="queue-title-text">${t.title}</span>
                   </button>
                   <span class="queue-actions">
-                    <button
-                      type="button"
-                      class="btn btn--queue-add${inQueue ? ' is-added' : ''}"
-                      @click=${(e: Event) => {
-                        e.stopPropagation();
-                        if (inQueue) void this.removeTrackFromQueue(t.slug);
-                        else void this.addTrackToQueue(t, false);
-                      }}
-                      aria-label=${inQueue ? 'Убрать из очереди' : 'Добавить в очередь'}
-                      title=${inQueue ? 'Убрать из очереди' : 'В очередь'}
-                    >${inQueue ? iconCheck : iconPlus}</button>
-                    <button
-                      type="button"
-                      class="btn btn--queue-next"
-                      @click=${(e: Event) => {
-                        e.stopPropagation();
-                        void this.addTrackToQueue(t, true);
-                      }}
-                      aria-label="Играть следующим"
-                      title="Следующим"
-                    >${iconQueueNext}</button>
-                    ${isActive ? this.renderTrackInfoButton(t.slug) : nothing}
-                    ${this.renderHeart(t.slug)}
+                    <span class="queue-action-slot">
+                      <button
+                        type="button"
+                        class="btn btn--queue-add${inQueue ? ' is-added' : ''}"
+                        @click=${(e: Event) => {
+                          e.stopPropagation();
+                          if (inQueue) void this.removeTrackFromQueue(t.slug);
+                          else void this.addTrackToQueue(t, false);
+                        }}
+                        aria-label=${inQueue ? 'Убрать из очереди' : 'Добавить в очередь'}
+                        title=${inQueue ? 'Убрать из очереди' : 'В очередь'}
+                      >${inQueue ? iconCheck : iconPlus}</button>
+                    </span>
+                    <span class="queue-action-slot">
+                      <button
+                        type="button"
+                        class="btn btn--queue-next"
+                        @click=${(e: Event) => {
+                          e.stopPropagation();
+                          void this.addTrackToQueue(t, true);
+                        }}
+                        aria-label="Играть следующим"
+                        title="Следующим"
+                      >${iconQueueNext}</button>
+                    </span>
+                    <span class="queue-action-slot">${this.renderTrackInfoButton(t.slug)}</span>
+                    <span class="queue-action-slot">${this.renderHeart(t.slug)}</span>
                     <span class="queue-duration">${formatMs(t.durationMs)}</span>
                   </span>
                 </li>
@@ -1408,7 +1412,9 @@ export class OmPlayer extends LitElement {
                     <div class="artist">${this.displayArtist}</div>
                   </div>
                   <div class="meta-actions">
-                    ${this.current ? this.renderTrackInfoButton(this.current.slug) : nothing}
+                    <span class="meta-action-slot meta-action-slot--info">
+                      ${this.current ? this.renderTrackInfoButton(this.current.slug) : nothing}
+                    </span>
                     ${this.renderHeart(this.current?.slug)}
                   </div>
                 </div>

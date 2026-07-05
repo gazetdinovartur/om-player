@@ -140,11 +140,35 @@
     void ensurePlayerReady({ skipRestore: true }).then((p) => p?.loadTrackPublic?.(slug, 0, true));
   }
 
+  function getAlbumPagePlayer() {
+    return document.querySelector('om-player.album-page__player')
+      || document.querySelector('.player-shell om-player[mode="full"]');
+  }
+
+  async function startAlbumPlayback(slug, tracks) {
+    await ensurePlayerScript();
+    const pagePlayer = getAlbumPagePlayer();
+    if (pagePlayer?.playAlbumPublic && tracks?.length) {
+      pagePlayer.unlockPlaybackPublic?.();
+      pagePlayer.playAlbumPublic(slug, tracks);
+      getGlobalPlayer()?.showPublic?.();
+      return true;
+    }
+    return false;
+  }
+
   function playAlbum(slug) {
     if (!slug) return;
     unlockAudioGesture();
-    const pageTracks = readTracksJson('album-tracks-json');
-    void ensurePlayerReady({ skipRestore: true }).then((p) => p?.playAlbumPublic?.(slug, pageTracks ?? undefined));
+    const tracks = readTracksJson('album-tracks-json');
+
+    void startAlbumPlayback(slug, tracks).then((ok) => {
+      if (ok) return;
+      void ensurePlayerReady({ skipRestore: true }).then((p) => {
+        p?.unlockPlaybackPublic?.();
+        p?.playAlbumPublic?.(slug, tracks ?? undefined);
+      });
+    });
   }
 
   function bindPlayButtons() {
@@ -165,6 +189,10 @@
       if (btn.dataset.omBound) return;
       btn.dataset.omBound = '1';
       bindPlayGestureUnlock(btn);
+      btn.addEventListener('pointerdown', () => {
+        unlockAudioGesture();
+        getAlbumPagePlayer()?.unlockPlaybackPublic?.();
+      }, { passive: true });
       btn.addEventListener('click', (e) => {
         e.preventDefault();
         const slug = btn.getAttribute('data-om-play-album');
