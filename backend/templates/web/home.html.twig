@@ -49,7 +49,7 @@
                     <h2 class="spotlight__title">{{ latestAlbum.title }}</h2>
                     <p class="spotlight__meta">
                         {{ latestAlbum.artist.name }}
-                        {% if latestAlbum.releasedAt %} · {{ latestAlbum.releasedAt|date('Y') }}{% endif %}
+                        {% if latestAlbum.releasedAt %} · {{ latestAlbum.releasedAt|release_date }}{% endif %}
                     </p>
                     <div class="spotlight__actions">
                         <button type="button" class="btn btn--primary" data-om-play-album="{{ latestAlbum.slug }}">
@@ -89,7 +89,7 @@
                 <div class="album-card__body">
                     <h3 class="album-card__title">{{ album.title }}</h3>
                     <p class="album-card__meta">
-                        {% if album.releasedAt %}{{ album.releasedAt|date('Y') }} · {% endif %}{{ album.artist.name }}
+                        {% if album.releasedAt %}{{ album.releasedAt|release_date }} · {% endif %}{{ album.artist.name }}
                     </p>
                 </div>
             </a>

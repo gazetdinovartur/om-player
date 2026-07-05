@@ -28,11 +28,14 @@
             <h1 class="album-hero__title">{{ album.title }}</h1>
             <p class="album-hero__artist"><span class="album-hero__copyright-mark" aria-hidden="true">©</span> {{ album.artist.name }}</p>
             <p class="album-hero__meta">
-                {% if album.releasedAt %}{{ album.releasedAt|date('Y') }}{% endif %}
+                {% if album.releasedAt %}{{ album.releasedAt|release_date }}{% endif %}
                 · {{ album.tracks|length }} {{ album.tracks|length == 1 ? 'трек' : (album.tracks|length < 5 ? 'трека' : 'треков') }}
             </p>
             {% if album.description %}
-                <p class="album-hero__description">{{ album.description }}</p>
+                <div class="album-hero__description-block" data-album-description>
+                    <p class="album-hero__description" data-description-text>{{ album.description }}</p>
+                    <button type="button" class="album-hero__description-toggle" data-description-toggle hidden aria-expanded="false">Ещё</button>
+                </div>
             {% endif %}
             <div class="album-hero__actions">
                 <button type="button" class="btn btn--primary btn--lg" data-om-play-album="{{ album.slug }}">
@@ -58,4 +61,8 @@
         class="album-page__player"
     ></om-player>
 </div>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ asset('js/om-album-description.js') }}" defer data-turbo-eval="false"></script>
 {% endblock %}

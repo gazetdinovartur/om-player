@@ -82,7 +82,7 @@
                 <div class="album-card__body">
                     <h2 class="album-card__title">{{ album.title }}</h2>
                     <p class="album-card__meta">
-                        {% if album.releasedAt %}{{ album.releasedAt|date('Y') }} · {% endif %}{{ album.artist.name }}
+                        {% if album.releasedAt %}{{ album.releasedAt|release_date }} · {% endif %}{{ album.artist.name }}
                     </p>
                 </div>
             </a>

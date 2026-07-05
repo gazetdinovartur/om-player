@@ -1,13 +1,15 @@
 import { html, LitElement, nothing, unsafeCSS } from 'lit';
 import { OmApiClient } from './api/client';
 import { withAbsoluteStream } from './api/resolve-url';
-import type { TrackSummary } from './api/types';
+import type { TrackDetail, TrackSummary } from './api/types';
 import {
   iconCheck,
   iconChevronDown,
+  iconClose,
   iconGrip,
   iconHeart,
   iconHeartFilled,
+  iconInfo,
   iconListMusic,
   iconNext,
   iconPause,
@@ -71,6 +73,11 @@ export class OmPlayer extends LitElement {
     queueNotice: { state: true },
     queueDragFrom: { state: true },
     queueDragOver: { state: true },
+    trackInfoOpen: { state: true },
+    trackInfoLoading: { state: true },
+    trackInfoDetail: { state: true },
+    trackInfoError: { state: true },
+    trackInfoSlug: { state: true },
   };
 
   declare mode: 'embed' | 'mini' | 'full';
@@ -94,6 +101,11 @@ export class OmPlayer extends LitElement {
   declare queueNotice: string;
   declare queueDragFrom: number | null;
   declare queueDragOver: number | null;
+  declare trackInfoOpen: boolean;
+  declare trackInfoLoading: boolean;
+  declare trackInfoDetail: TrackDetail | null;
+  declare trackInfoError: string;
+  declare trackInfoSlug: string | null;
 
   constructor() {
     super();
@@ -118,6 +130,11 @@ export class OmPlayer extends LitElement {
     this.queueNotice = '';
     this.queueDragFrom = null;
     this.queueDragOver = null;
+    this.trackInfoOpen = false;
+    this.trackInfoLoading = false;
+    this.trackInfoDetail = null;
+    this.trackInfoError = '';
+    this.trackInfoSlug = null;
   }
 
   private store = getPlayerStore();
@@ -149,6 +166,12 @@ export class OmPlayer extends LitElement {
       if (!this.isConnected) return;
       if (this.mode === 'mini' && (this.store.getCurrentTrack() || this.hasLiveAudio())) {
         this.visible = true;
+      }
+      if (this.mode === 'full' && this.trackInfoOpen) {
+        const slug = this.current?.slug;
+        if (slug && slug !== this.trackInfoSlug) {
+          void this.loadTrackInfo(slug);
+        }
       }
       if (!this.seeking) {
         this.scheduleUiUpdate();
@@ -212,7 +235,12 @@ export class OmPlayer extends LitElement {
     this.renderRoot.addEventListener('click', this.heartClickHandler);
 
     this.escapeHandler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && this.queueExpanded) this.closeQueueExpanded();
+      if (e.key !== 'Escape') return;
+      if (this.trackInfoOpen) {
+        this.closeTrackInfo();
+        return;
+      }
+      if (this.queueExpanded) this.closeQueueExpanded();
     };
     document.addEventListener('keydown', this.escapeHandler);
   }
@@ -928,6 +956,100 @@ export class OmPlayer extends LitElement {
     }
   }
 
+  private closeTrackInfo(): void {
+    this.trackInfoOpen = false;
+    this.trackInfoDetail = null;
+    this.trackInfoSlug = null;
+    this.trackInfoError = '';
+    this.trackInfoLoading = false;
+    this.requestUpdate();
+  }
+
+  private toggleTrackInfo(slug: string): void {
+    if (this.trackInfoOpen && this.trackInfoSlug === slug) {
+      this.closeTrackInfo();
+      return;
+    }
+    this.trackInfoOpen = true;
+    void this.loadTrackInfo(slug);
+  }
+
+  private async loadTrackInfo(slug: string): Promise<void> {
+    if (!this.client) return;
+    this.trackInfoSlug = slug;
+    this.trackInfoLoading = true;
+    this.trackInfoError = '';
+    this.requestUpdate();
+    try {
+      const detail = withAbsoluteStream(this.apiBase, await this.client.getTrack(slug));
+      if (this.trackInfoSlug !== slug) return;
+      this.trackInfoDetail = detail;
+    } catch {
+      if (this.trackInfoSlug === slug) {
+        this.trackInfoDetail = null;
+        this.trackInfoError = 'Не удалось загрузить информацию о треке';
+      }
+    } finally {
+      if (this.trackInfoSlug === slug) {
+        this.trackInfoLoading = false;
+        this.requestUpdate();
+      }
+    }
+  }
+
+  private renderTrackInfoButton(slug: string): unknown {
+    const active = this.trackInfoOpen && this.trackInfoSlug === slug;
+    return html`
+      <button
+        type="button"
+        class="btn btn--track-info${active ? ' is-active' : ''}"
+        @click=${(e: Event) => {
+          e.stopPropagation();
+          this.toggleTrackInfo(slug);
+        }}
+        aria-label="О треке"
+        title="О треке"
+        aria-pressed=${active ? 'true' : 'false'}
+      >${iconInfo}</button>
+    `;
+  }
+
+  private renderTrackInfoSections(detail: TrackDetail): unknown {
+    const credits = detail.credits?.trim() ?? '';
+    const description = detail.description?.trim() ?? '';
+    const lyrics = detail.lyrics?.trim() ?? '';
+    if (!credits && !description && !lyrics) {
+      return html`<p class="track-info-panel__state">Нет дополнительной информации</p>`;
+    }
+    return html`
+      ${credits
+        ? html`<section class="track-info-section"><h4 class="track-info-section__title">Участники</h4><p class="track-info-section__text">${credits}</p></section>`
+        : nothing}
+      ${description
+        ? html`<section class="track-info-section"><h4 class="track-info-section__title">Описание</h4><p class="track-info-section__text">${description}</p></section>`
+        : nothing}
+      ${lyrics
+        ? html`<section class="track-info-section"><h4 class="track-info-section__title">Текст</h4><pre class="track-info-lyrics">${lyrics}</pre></section>`
+        : nothing}
+    `;
+  }
+
+  private renderTrackInfoPanel(): unknown {
+    if (!this.trackInfoOpen) return nothing;
+    const detail = this.trackInfoDetail;
+    return html`
+      <aside class="track-info-panel" role="complementary" aria-label="О треке">
+        <div class="track-info-panel__header">
+          <h3 class="track-info-panel__title">О треке</h3>
+          <button type="button" class="btn btn--track-info-close" @click=${() => this.closeTrackInfo()} aria-label="Закрыть">${iconClose}</button>
+        </div>
+        ${this.trackInfoLoading ? html`<p class="track-info-panel__state">Загрузка…</p>` : nothing}
+        ${this.trackInfoError ? html`<p class="track-info-panel__state track-info-panel__state--error">${this.trackInfoError}</p>` : nothing}
+        ${!this.trackInfoLoading && detail ? this.renderTrackInfoSections(detail) : nothing}
+      </aside>
+    `;
+  }
+
   private renderAlbumTrackList(): unknown {
     const tracks = this.pageTracks;
     return html`
@@ -969,6 +1091,7 @@ export class OmPlayer extends LitElement {
                       aria-label="Играть следующим"
                       title="Следующим"
                     >${iconQueueNext}</button>
+                    ${isActive ? this.renderTrackInfoButton(t.slug) : nothing}
                     ${this.renderHeart(t.slug)}
                     <span class="queue-duration">${formatMs(t.durationMs)}</span>
                   </span>
@@ -1272,7 +1395,7 @@ export class OmPlayer extends LitElement {
         <div class="player player--full" role="region" aria-label="Плеер альбома">
           ${this.loading ? html`<div class="state">Загрузка треков…</div>` : nothing}
           ${this.error ? html`<div class="state state--error">${this.error}</div>` : nothing}
-          <div class="full-layout">
+          <div class="full-layout${this.trackInfoOpen ? ' full-layout--info-open' : ''}">
             <aside class="full-now">
               <div class="full-cover-wrap">
                 ${this.renderCover('lg')}
@@ -1284,7 +1407,10 @@ export class OmPlayer extends LitElement {
                     <div class="title">${this.displayTitle}</div>
                     <div class="artist">${this.displayArtist}</div>
                   </div>
-                  ${this.renderHeart(this.current?.slug)}
+                  <div class="meta-actions">
+                    ${this.current ? this.renderTrackInfoButton(this.current.slug) : nothing}
+                    ${this.renderHeart(this.current?.slug)}
+                  </div>
                 </div>
               </div>
               <div class="controls controls--center">
@@ -1303,6 +1429,7 @@ export class OmPlayer extends LitElement {
               <h2 class="queue-title">Треки</h2>
               ${this.renderAlbumTrackList()}
             </div>
+            ${this.renderTrackInfoPanel()}
           </div>
         </div>
       `;

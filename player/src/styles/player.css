@@ -527,6 +527,117 @@
   gap: 12px;
 }
 
+.meta-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.btn--track-info,
+.btn--track-info-close {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 999px;
+  color: var(--om-text-secondary);
+}
+
+.btn--track-info:hover,
+.btn--track-info-close:hover {
+  color: var(--om-text);
+  background: var(--om-surface-hover);
+}
+
+.btn--track-info.is-active {
+  color: var(--om-accent);
+  background: color-mix(in srgb, var(--om-accent) 12%, transparent);
+}
+
+.full-layout--info-open {
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr) minmax(240px, 300px);
+}
+
+.track-info-panel {
+  position: sticky;
+  top: var(--om-header-offset);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: min(70vh, 640px);
+  padding: 18px 18px 20px;
+  border: 1px solid var(--om-border);
+  border-radius: 16px;
+  background: var(--om-surface);
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+}
+
+.track-info-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.track-info-panel__title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.track-info-panel__state {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--om-text-secondary);
+}
+
+.track-info-panel__state--error {
+  color: var(--om-danger, #c0392b);
+}
+
+.track-info-section + .track-info-section {
+  margin-top: 4px;
+}
+
+.track-info-section__title {
+  margin: 0 0 6px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--om-text-muted);
+}
+
+.track-info-section__text {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--om-text-secondary);
+  white-space: pre-wrap;
+}
+
+.track-info-lyrics {
+  margin: 0;
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: var(--om-text-secondary);
+  white-space: pre-wrap;
+}
+
+@media (max-width: 768px) {
+  .full-layout--info-open {
+    grid-template-columns: 1fr;
+  }
+
+  .track-info-panel {
+    position: static;
+    max-height: none;
+  }
+}
+
 .meta-text {
   min-width: 0;
   flex: 1;
