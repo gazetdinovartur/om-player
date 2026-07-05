@@ -10,7 +10,9 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\Field;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
+use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 
 /**
  * Используется только как вложенная форма в PlaylistCrudController (CollectionField).
@@ -38,6 +40,12 @@ final class PlaylistItemCrudController extends AbstractCrudController
 
     public function configureFields(string $pageName): iterable
     {
+        yield Field::new('id')
+            ->setFormType(HiddenType::class)
+            ->setFormTypeOption('attr', ['class' => 'om-entity-id-input'])
+            ->onlyOnForms()
+            ->setColumns(12);
+
         yield AssociationField::new('track', 'Трек')
             ->setRequired(true)
             ->autocomplete()

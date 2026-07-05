@@ -1,0 +1,25 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Любимое — OmPlayer{% endblock %}
+
+{% block body %}
+<header class="catalog-header">
+    <div>
+        <h1 class="catalog-header__title">Любимое</h1>
+        <p class="catalog-header__lead">Треки, которые вы отметили сердечком. Список хранится в этом браузере.</p>
+    </div>
+    <div class="catalog-header__actions" id="favorites-actions" hidden>
+        <button type="button" class="btn btn--primary" id="favorites-play-all" data-om-play-tracks="favorites-tracks-json">
+            <svg class="btn__icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.14v13.72L19 12 8 5.14z"/></svg>
+            Слушать всё
+        </button>
+    </div>
+</header>
+
+<section class="section favorites-section">
+    <script type="application/json" id="favorites-tracks-json">[]</script>
+    <div id="favorites-root" class="favorites-root" aria-live="polite">
+        <p class="favorites-root__loading">Загрузка…</p>
+    </div>
+</section>
+{% endblock %}

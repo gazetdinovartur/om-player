@@ -37,9 +37,51 @@ export class PlayerStore {
   private restoreFn: (() => Promise<void>) | null = null;
   private persistTimer: number | null = null;
   private wasPlayingBeforeNav = false;
-  private navResumeGen = 0;
   private navigationPlaybackLock = false;
+  private navigationSnapshotMs = 0;
+  private shouldResumeAfterNav = false;
   private intendedPlaying = false;
+  private lastKnownPositionMs = 0;
+
+  private resolvePersistedPosition(livePosition: number): number {
+    if (livePosition > 1000) {
+      this.lastKnownPositionMs = livePosition;
+      return livePosition;
+    }
+    if (this.restoringPositionMs !== null && this.restoringPositionMs > 1000) {
+      return this.restoringPositionMs;
+    }
+    if (this.lastKnownPositionMs > 1000) {
+      return this.lastKnownPositionMs;
+    }
+    const track = this.engine.getCurrentTrack();
+    const saved = this.loadSaved();
+    if (
+      saved?.trackSlug &&
+      track?.slug === saved.trackSlug &&
+      saved.positionMs > 1000
+    ) {
+      return saved.positionMs;
+    }
+    return livePosition;
+  }
+
+  syncSavedPlaybackPosition(): void {
+    if (this.isNavigatingPlayback() || this.isPlaying() || this.intendedPlaying) return;
+
+    const audio = this.engine.peekAudioElement();
+    const saved = this.loadSaved();
+    const track = this.engine.getCurrentTrack();
+    if (!audio?.src || audio.ended || !saved?.trackSlug || !track) return;
+    if (track.slug !== saved.trackSlug) return;
+    if (!audio.paused) return;
+
+    const pos = this.getPositionMs();
+    if (saved.positionMs > 1500 && pos < 1000) {
+      this.engine.seek(saved.positionMs);
+      this.lastKnownPositionMs = saved.positionMs;
+    }
+  }
 
   private isNavigatingPlayback(): boolean {
     return this.wasPlayingBeforeNav || this.navigationPlaybackLock;
@@ -57,20 +99,73 @@ export class PlayerStore {
   private clearNavigationLock(): void {
     this.wasPlayingBeforeNav = false;
     this.navigationPlaybackLock = false;
-    this.navResumeGen += 1;
+    this.shouldResumeAfterNav = false;
+    this.navigationSnapshotMs = 0;
+    this.setNavigatingAudioFlag(false);
   }
 
-  private captureNavigationIntent(): void {
+  private setNavigatingAudioFlag(active: boolean): void {
     const audio = this.engine.peekAudioElement();
-    if (!audio?.src || audio.ended) return;
-    if (this.isPlaying() || (this.intendedPlaying && audio.currentTime > 0.25)) {
-      this.wasPlayingBeforeNav = true;
-      this.navigationPlaybackLock = true;
+    if (!audio) return;
+    if (active) {
+      audio.dataset.omNavigating = '1';
+    } else {
+      delete audio.dataset.omNavigating;
     }
   }
 
+  /** Active playback that must not be interrupted by restore/reload. */
+  hasActiveSession(): boolean {
+    const audio = this.engine.peekAudioElement();
+    const track = this.engine.getCurrentTrack();
+    if (!track || !audio?.src || audio.ended || audio.error) return false;
+    if (this.isNavigatingPlayback()) return true;
+    if (this.isPlaying() || this.intendedPlaying) return true;
+    return audio.currentTime > 0.25 || this.engine.getPositionMs() > 250;
+  }
+
+  isNavigating(): boolean {
+    return this.isNavigatingPlayback();
+  }
+
+  completeNavigation(): void {
+    this.finalizeNavigationPlayback();
+  }
+
+  repairNavigationPositionPublic(): void {
+    this.repairNavigationPositionBeforeResume();
+    this.notify();
+  }
+
+  private captureNavigationIntent(_unlockGesture = false): void {
+    const audio = this.engine.peekAudioElement();
+    if (!audio?.src || audio.ended) return;
+
+    const live = this.engine.getPositionMs();
+    const pos = Math.max(live, this.lastKnownPositionMs, Math.round(audio.currentTime * 1000));
+    const wasActive =
+      this.isPlaying() ||
+      this.intendedPlaying ||
+      pos > 250 ||
+      audio.currentTime > 0.25;
+
+    if (!wasActive) return;
+
+    this.shouldResumeAfterNav = this.isPlaying() || this.intendedPlaying;
+    this.wasPlayingBeforeNav = true;
+    this.navigationPlaybackLock = true;
+
+    const snapshot = Math.max(pos, this.lastKnownPositionMs);
+    if (snapshot > 250) {
+      this.navigationSnapshotMs = snapshot;
+      this.lastKnownPositionMs = snapshot;
+    }
+
+    this.setNavigatingAudioFlag(true);
+  }
+
   private isLivePlayback(): boolean {
-    const audio = this.engine.getAudioElement();
+    const audio = this.engine.peekAudioElement();
     if (!audio?.src || audio.ended) return false;
     return this.isPlaying() || audio.currentTime > 0.25;
   }
@@ -86,10 +181,15 @@ export class PlayerStore {
   }
 
   private async ensureRestored(): Promise<void> {
-    if (this.isLivePlayback()) return;
+    if (this.hasActiveSession()) return;
 
-    const audio = this.engine.getAudioElement();
-    if (this.engine.getCurrentTrack() && audio?.src) {
+    const audio = this.engine.peekAudioElement();
+    if (
+      this.engine.getCurrentTrack() &&
+      audio?.src &&
+      !audio.error &&
+      this.engine.hasPlayableSource()
+    ) {
       return;
     }
     if (this.restoreFn) {
@@ -107,6 +207,7 @@ export class PlayerStore {
     if (saved?.volume) this.volume = saved.volume;
     if (saved?.repeat) this.repeat = saved.repeat;
     if (saved?.shuffle) this.shuffle = saved.shuffle;
+    if (saved?.positionMs > 1000) this.lastKnownPositionMs = saved.positionMs;
     if (saved?.trackSlug) {
       this.engine.primeMediaSession(
         saved.trackTitle ?? saved.trackSlug,
@@ -117,18 +218,41 @@ export class PlayerStore {
 
     this.engine.setVolume(this.volume);
     this.engine.onSpuriousPause(() => {
-      if (this.isNavigatingPlayback()) {
-        this.guardContinuousPlayback();
-      }
+      /* During Turbo navigation audio is zero-touch — see completeNavigationQuietly(). */
     });
     this.engine.onPlaybackStarted(() => {
+      if (this.isNavigatingPlayback()) return;
       this.markPlaybackIntent();
       this.notify();
     });
     this.engine.onFinished(() => this.onTrackEnd());
-    this.engine.onPosition(() => this.persist());
+    this.engine.onPosition(() => {
+      const pos = this.getPositionMs();
+      if (pos > 500) this.lastKnownPositionMs = pos;
+      if (!this.isNavigatingPlayback()) {
+        this.persist();
+      }
+    });
     this.engine.onLoaded(() => {
+      const expected = this.restoringPositionMs;
+      if (expected !== null && expected > 1000) {
+        const confirmSeek = (): void => {
+          const pos = this.getPositionMs();
+          if (pos > 1000 || Math.abs(pos - expected) < 2500) {
+            this.restoringPositionMs = null;
+            if (pos > 500) this.lastKnownPositionMs = pos;
+            this.persist();
+            this.notify();
+            return;
+          }
+          window.setTimeout(confirmSeek, 60);
+        };
+        window.setTimeout(confirmSeek, 0);
+        return;
+      }
       this.restoringPositionMs = null;
+      const pos = this.getPositionMs();
+      if (pos > 500) this.lastKnownPositionMs = pos;
       this.persist();
       this.notify();
     });
@@ -158,30 +282,49 @@ export class PlayerStore {
       this.captureNavigationIntent();
     }, true);
 
-    window.addEventListener('pagehide', () => this.persist(true));
-    window.addEventListener('beforeunload', () => this.persist(true));
+    window.addEventListener('pagehide', () => this.persist(true, true));
+    window.addEventListener('beforeunload', () => this.persist(true, true));
     window.addEventListener('turbo:before-visit', () => {
       this.captureNavigationIntent();
       this.persist(true, true);
     });
-    document.addEventListener('turbo:before-render', () => {
-      if (this.isNavigatingPlayback()) this.guardContinuousPlayback();
-    });
-    document.addEventListener('turbo:render', () => {
-      if (this.isNavigatingPlayback()) this.guardContinuousPlayback();
-    });
     window.addEventListener('turbo:load', () => {
       this.wireAudioNavigationGuard();
-      if (!this.isNavigatingPlayback()) return;
-      this.guardContinuousPlayback();
-      requestAnimationFrame(() => {
-        if (this.isNavigatingPlayback()) this.guardContinuousPlayback();
-      });
-      window.setTimeout(() => {
-        if (this.isNavigatingPlayback()) this.guardContinuousPlayback();
-        this.finalizeNavigationPlayback();
-      }, 320);
+      void this.completeNavigationQuietly();
     });
+  }
+
+  /**
+   * Yandex-style navigation: never touch audio while Turbo runs.
+   * Resume only as a last resort if the browser genuinely paused the element.
+   */
+  private async completeNavigationQuietly(): Promise<void> {
+    if (!this.isNavigatingPlayback()) {
+      this.notify();
+      return;
+    }
+
+    await new Promise<void>((resolve) => {
+      window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve()));
+    });
+
+    const audio = this.engine.peekAudioElement();
+
+    if (audio?.src && !audio.paused && !audio.ended) {
+      this.finalizeNavigationPlayback();
+      return;
+    }
+
+    if (this.shouldResumeAfterNav && audio?.src && audio.paused && !audio.ended) {
+      const live = Math.round(audio.currentTime * 1000);
+      const target = Math.max(this.navigationSnapshotMs, this.lastKnownPositionMs);
+      if (live < 30 && target > live + 2000) {
+        this.engine.seek(target);
+      }
+      await this.engine.playFromAction();
+    }
+
+    this.finalizeNavigationPlayback();
   }
 
   private finalizeNavigationPlayback(): void {
@@ -190,7 +333,27 @@ export class PlayerStore {
       this.markPlaybackIntent();
     }
     this.clearNavigationLock();
+    window.requestAnimationFrame(() => this.persist());
     this.notify();
+  }
+
+  /**
+   * Seek only when Turbo clearly zeroed currentTime.
+   * Must run while paused and before play() — never seek during playback.
+   */
+  private repairNavigationPositionBeforeResume(): void {
+    const audio = this.engine.peekAudioElement();
+    if (!audio?.src || audio.ended || !audio.paused) return;
+
+    const live = Math.round(audio.currentTime * 1000);
+    if (live > 30) return;
+
+    const savedPos = this.loadSaved()?.positionMs ?? 0;
+    const target = Math.max(this.navigationSnapshotMs, this.lastKnownPositionMs, savedPos);
+    if (target < live + 3000) return;
+
+    this.engine.seek(target);
+    this.lastKnownPositionMs = target;
   }
 
   private wireAudioNavigationGuard(): void {
@@ -198,63 +361,6 @@ export class PlayerStore {
     if (!audio || audio.dataset.omNavGuard === '1') return;
     audio.dataset.omNavGuard = '1';
     audio.addEventListener('play', () => this.markPlaybackIntent());
-  }
-
-  /** Keep album playing through Turbo page swaps — only audio.play(), never reload. */
-  private guardContinuousPlayback(): void {
-    if (!this.isNavigatingPlayback()) return;
-
-    let audio = this.engine.peekAudioElement();
-    if (!audio?.src) return;
-
-    if (!audio.isConnected) {
-      this.engine.ensureAudioConnected();
-      audio = this.engine.peekAudioElement();
-      if (!audio?.src) return;
-    }
-
-    if (!audio.paused && !audio.ended) {
-      this.markPlaybackIntent();
-      return;
-    }
-
-    this.engine.resumeIfPaused();
-    this.armNavigationResume();
-  }
-
-  private armNavigationResume(): void {
-    const gen = ++this.navResumeGen;
-    const delays = [0, 40, 120, 280];
-
-    const tryResume = (): void => {
-      if (gen !== this.navResumeGen || !this.isNavigatingPlayback()) return;
-
-      let audio = this.engine.peekAudioElement();
-      if (!audio?.src || audio.ended) return;
-
-      if (!audio.isConnected) {
-        this.engine.ensureAudioConnected();
-        audio = this.engine.peekAudioElement();
-        if (!audio?.src) return;
-      }
-
-      if (!audio.paused) {
-        this.markPlaybackIntent();
-        return;
-      }
-
-      void audio.play().then(() => {
-        if (!audio.paused) {
-          this.markPlaybackIntent();
-          this.engine.ensurePlaybackRunning();
-        }
-      }).catch(() => {});
-    };
-
-    delays.forEach((ms) => {
-      if (ms === 0) tryResume();
-      else window.setTimeout(tryResume, ms);
-    });
   }
 
   subscribe(fn: () => void): () => void {
@@ -280,8 +386,9 @@ export class PlayerStore {
     }
   }
 
-  shouldAutoplayRestore(wasPlaying: boolean): boolean {
-    return wasPlaying && document.visibilityState === 'visible';
+  shouldAutoplayRestore(_wasPlaying: boolean): boolean {
+    // Browsers block programmatic play without a user gesture — restore paused.
+    return false;
   }
 
   playTrack(track: TrackSummary, startMs = 0, force = false): void {
@@ -323,12 +430,24 @@ export class PlayerStore {
     const track = this.queue[startIndex];
     if (!track) return;
 
+    let effectiveStartMs = startMs;
+    if (
+      !force &&
+      startMs === 0 &&
+      track.slug === prevSlug &&
+      this.getPositionMs() > 1000
+    ) {
+      effectiveStartMs = this.getPositionMs();
+    }
+
+    const audio = this.engine.peekAudioElement();
+
     if (
       !force &&
       track.slug === prevSlug &&
-      this.engine.getAudioElement()?.src &&
-      this.isLivePlayback() &&
-      (startMs === 0 || Math.abs(this.getPositionMs() - startMs) < 2500)
+      audio?.src &&
+      this.hasActiveSession() &&
+      (effectiveStartMs === 0 || Math.abs(this.getPositionMs() - effectiveStartMs) < 2500)
     ) {
       if (autoplay && !this.isPlaying()) {
         this.tabs.announcePlayback();
@@ -339,9 +458,9 @@ export class PlayerStore {
     }
 
     if (autoplay) this.tabs.announcePlayback();
-    this.restoringPositionMs = startMs > 0 ? startMs : null;
+    this.restoringPositionMs = effectiveStartMs > 0 ? effectiveStartMs : null;
     try {
-      this.engine.load(track, startMs, autoplay, force);
+      this.engine.load(track, effectiveStartMs, autoplay, force);
     } catch {
       this.clearPlaybackIntent();
       this.notify();
@@ -356,11 +475,11 @@ export class PlayerStore {
     if (!track) return;
 
     const prevSlug = this.engine.getCurrentTrack()?.slug;
-    const audio = this.engine.getAudioElement();
+    const audio = this.engine.peekAudioElement();
     if (
       track.slug === prevSlug &&
       audio?.src &&
-      this.isLivePlayback() &&
+      this.hasActiveSession() &&
       Math.abs(this.getPositionMs() - startMs) < 2500
     ) {
       this.originalQueue = [...fullAlbum];
@@ -559,7 +678,12 @@ export class PlayerStore {
   }
 
   getPositionMs(): number {
-    return this.engine.getPositionMs();
+    const live = this.engine.getPositionMs();
+    if (this.isNavigatingPlayback() && live < 500) {
+      if (this.navigationSnapshotMs > 500) return this.navigationSnapshotMs;
+      if (this.lastKnownPositionMs > 500) return this.lastKnownPositionMs;
+    }
+    return live;
   }
 
   getDurationMs(): number {
@@ -572,6 +696,135 @@ export class PlayerStore {
 
   getCurrentTrack(): TrackSummary | null {
     return this.engine.getCurrentTrack();
+  }
+
+  hasInQueue(slug: string): boolean {
+    return this.queue.some((t) => t.slug === slug);
+  }
+
+  queueIndexOf(slug: string): number {
+    return this.queue.findIndex((t) => t.slug === slug);
+  }
+
+  removeBySlug(slug: string): boolean {
+    const idx = this.queueIndexOf(slug);
+    if (idx < 0) return false;
+    this.removeAt(idx);
+    return true;
+  }
+
+  moveQueueItem(from: number, to: number): void {
+    if (from === to || from < 0 || to < 0 || from >= this.queue.length) return;
+
+    const item = this.queue[from];
+    this.queue.splice(from, 1);
+    const insertAt = Math.max(0, Math.min(to, this.queue.length));
+    this.queue.splice(insertAt, 0, item);
+
+    const current = this.engine.getCurrentTrack();
+    if (current) {
+      const idx = this.queue.findIndex((t) => t.slug === current.slug);
+      if (idx >= 0) this.queueIndex = idx;
+    }
+
+    if (!this.shuffle) {
+      this.originalQueue = [...this.queue];
+    }
+
+    this.persist();
+    this.notify();
+  }
+
+  addToQueue(track: TrackSummary): boolean {
+    if (this.hasInQueue(track.slug)) return false;
+
+    this.originalQueue.push(track);
+    this.queue.push(track);
+    this.persist();
+    this.notify();
+    return true;
+  }
+
+  playNext(track: TrackSummary): boolean {
+    const existingIdx = this.queueIndexOf(track.slug);
+    const current = this.engine.getCurrentTrack();
+
+    if (existingIdx >= 0) {
+      if (existingIdx === this.queueIndex) return false;
+      const target = this.queueIndex + 1;
+      if (existingIdx !== target) {
+        this.moveQueueItem(existingIdx, target);
+      }
+      return true;
+    }
+
+    if (!current || this.queue.length === 0) {
+      this.loadTrack(track, 0, true);
+      return true;
+    }
+
+    const insertAt = this.queueIndex + 1;
+    this.queue.splice(insertAt, 0, track);
+
+    if (!this.shuffle) {
+      this.originalQueue = [...this.queue];
+    } else {
+      this.originalQueue.push(track);
+    }
+
+    this.persist();
+    this.notify();
+    return true;
+  }
+
+  removeAt(index: number): void {
+    if (index < 0 || index >= this.queue.length) return;
+
+    const removed = this.queue[index];
+    this.queue.splice(index, 1);
+    const origIdx = this.originalQueue.findIndex((t) => t.slug === removed.slug);
+    if (origIdx >= 0) this.originalQueue.splice(origIdx, 1);
+
+    if (this.queue.length === 0) {
+      this.queueIndex = 0;
+      this.engine.pause();
+      this.clearPlaybackIntent();
+      this.persist();
+      this.notify();
+      return;
+    }
+
+    if (index < this.queueIndex) {
+      this.queueIndex -= 1;
+    } else if (index === this.queueIndex) {
+      if (this.queueIndex >= this.queue.length) {
+        this.queueIndex = this.queue.length - 1;
+      }
+      const next = this.queue[this.queueIndex];
+      if (next) {
+        this.tabs.announcePlayback();
+        this.engine.play(next, 0);
+        this.emit('om:track-change', next);
+      }
+    }
+
+    this.persist();
+    this.notify();
+  }
+
+  clearQueue(): void {
+    const current = this.engine.getCurrentTrack();
+    if (!current) {
+      this.queue = [];
+      this.originalQueue = [];
+      this.queueIndex = 0;
+    } else {
+      this.queue = [current];
+      this.originalQueue = [current];
+      this.queueIndex = 0;
+    }
+    this.persist();
+    this.notify();
   }
 
   private shuffledCopy(tracks: TrackSummary[]): TrackSummary[] {
@@ -601,11 +854,11 @@ export class PlayerStore {
 
   private writeSaved(preservePlaying = false): void {
     const track = this.engine.getCurrentTrack();
-    const livePosition = this.getPositionMs();
-    const positionMs =
-      this.restoringPositionMs !== null && livePosition < 1000
-        ? this.restoringPositionMs
-        : livePosition;
+    let livePosition = this.engine.getPositionMs();
+    if (this.isNavigatingPlayback() && livePosition < 500 && this.navigationSnapshotMs > 500) {
+      livePosition = this.navigationSnapshotMs;
+    }
+    const positionMs = this.resolvePersistedPosition(livePosition);
     const saved: SavedPlayback = {
       trackSlug: track?.slug ?? null,
       albumSlug: track?.albumSlug ?? null,

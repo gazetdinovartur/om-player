@@ -6,6 +6,18 @@ export class FavoritesStore {
 
   constructor() {
     this.load();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', (e) => {
+        if (e.key === STORAGE_KEY) {
+          this.load();
+          this.notify();
+        }
+      });
+      window.addEventListener('om:favorites-changed', () => {
+        this.load();
+        this.notify();
+      });
+    }
   }
 
   load(): void {
@@ -40,6 +52,9 @@ export class FavoritesStore {
       this.slugs.add(slug);
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify([...this.slugs]));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('om:favorites-changed'));
+    }
     this.notify();
     return this.slugs.has(slug);
   }

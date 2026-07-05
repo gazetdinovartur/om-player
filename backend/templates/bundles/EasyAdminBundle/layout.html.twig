@@ -15,10 +15,13 @@
 
 {% block head_metas %}
     {{ parent() }}
+    <script type="module" src="{{ asset('js/turbo.es2017-esm.js') }}"></script>
+{% endblock %}
+
+{% block head_favicon %}
     <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
     <link rel="icon" href="{{ asset('favicon-32.png') }}" type="image/png" sizes="32x32">
     <link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
-    <script type="module" src="{{ asset('js/turbo.es2017-esm.js') }}"></script>
 {% endblock %}
 
 {% block body_attr %}data-turbo="true"{% endblock %}

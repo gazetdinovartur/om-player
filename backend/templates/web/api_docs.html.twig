@@ -1,0 +1,71 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}REST API — OmPlayer{% endblock %}
+
+{% block head %}
+    <meta name="turbo-cache-control" content="no-cache">
+    <meta name="turbo-visit-control" content="reload">
+    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css" crossorigin>
+{% endblock %}
+
+{% block body %}
+<div class="api-docs-page" data-turbo="false">
+    <section class="api-docs-page__intro">
+        <p class="api-docs-page__eyebrow">REST API v1</p>
+        <h1 class="api-docs-page__title">Документация OmPlayer API</h1>
+        <p class="api-docs-page__lead">
+            Каталог, треки, стримы и аналитика в JSON. Ниже — интерактивная спецификация:
+            можно раскрыть эндпоинт и посмотреть формат ответа.
+        </p>
+        <div class="api-docs-page__meta">
+            <span>Базовый URL: <code class="about-inline-code">{{ apiBase }}</code></span>
+            <a class="api-docs-page__raw" href="{{ specUrl }}">Скачать OpenAPI (YAML)</a>
+        </div>
+    </section>
+
+    <div id="swagger-ui" class="api-docs-page__swagger" aria-live="polite"></div>
+</div>
+
+<script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js" crossorigin></script>
+<script>
+(function () {
+    let swaggerUi = null;
+
+    function mountSwagger() {
+        const root = document.getElementById('swagger-ui');
+        if (!root || typeof SwaggerUIBundle === 'undefined') {
+            return;
+        }
+
+        if (swaggerUi) {
+            swaggerUi = null;
+        }
+
+        root.innerHTML = '';
+        swaggerUi = SwaggerUIBundle({
+            url: {{ specUrl|json_encode|raw }},
+            dom_id: '#swagger-ui',
+            deepLinking: true,
+            displayRequestDuration: true,
+            filter: true,
+            tryItOutEnabled: true,
+            persistAuthorization: false,
+            syntaxHighlight: { theme: 'monokai' },
+        });
+    }
+
+    function scheduleMount() {
+        if (document.getElementById('swagger-ui')) {
+            mountSwagger();
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', scheduleMount);
+    } else {
+        scheduleMount();
+    }
+    document.addEventListener('turbo:load', scheduleMount);
+})();
+</script>
+{% endblock %}

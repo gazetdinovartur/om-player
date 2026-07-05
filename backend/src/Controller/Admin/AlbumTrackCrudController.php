@@ -9,8 +9,10 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
+use EasyCorp\Bundle\EasyAdminBundle\Field\Field;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 
 /** Вложенная форма: порядок треков альбома (drag-and-drop). */
 final class AlbumTrackCrudController extends AbstractCrudController
@@ -35,6 +37,12 @@ final class AlbumTrackCrudController extends AbstractCrudController
 
     public function configureFields(string $pageName): iterable
     {
+        yield Field::new('id')
+            ->setFormType(HiddenType::class)
+            ->setFormTypeOption('attr', ['class' => 'om-entity-id-input'])
+            ->onlyOnForms()
+            ->setColumns(12);
+
         yield TextField::new('title', 'Трек')
             ->setFormTypeOption('disabled', true)
             ->setColumns(12);

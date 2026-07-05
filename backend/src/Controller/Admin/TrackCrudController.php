@@ -9,6 +9,7 @@ use App\Enum\TrackType;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
@@ -17,6 +18,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\SlugField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
 
 final class TrackCrudController extends AbstractCrudController
 {
@@ -34,7 +36,13 @@ final class TrackCrudController extends AbstractCrudController
             ->setPageTitle(Crud::PAGE_NEW, 'Новый трек')
             ->setPageTitle(Crud::PAGE_EDIT, static fn (Track $track): string => sprintf('«%s»', $track->getTitle()))
             ->setDefaultSort(['album' => 'ASC', 'trackNumber' => 'ASC'])
-            ->setPaginatorPageSize(30);
+            ->setPaginatorPageSize(30)
+            ->overrideTemplate('crud/index', 'admin/crud/track_index.html.twig');
+    }
+
+    public function configureFilters(Filters $filters): Filters
+    {
+        return $filters->add(EntityFilter::new('album', 'Альбом'));
     }
 
     public function configureActions(Actions $actions): Actions
@@ -43,7 +51,9 @@ final class TrackCrudController extends AbstractCrudController
             ->linkToRoute('admin_upload_track')
             ->createAsGlobalAction();
 
-        return $actions->add(Crud::PAGE_INDEX, $upload);
+        return $actions
+            ->disable(Action::BATCH_DELETE)
+            ->add(Crud::PAGE_INDEX, $upload);
     }
 
     public function configureFields(string $pageName): iterable
@@ -57,7 +67,9 @@ final class TrackCrudController extends AbstractCrudController
             yield ChoiceField::new('type', 'Тип')
                 ->setChoices(self::typeChoices())
                 ->formatValue(static fn (?TrackType $type): string => self::typeLabel($type));
-            yield BooleanField::new('published', 'Опубл.');
+            yield BooleanField::new('published', 'Опубл.')
+                ->renderAsSwitch(false)
+                ->formatValue(static fn (?bool $value): string => $value ? 'Да' : 'Нет');
 
             return;
         }
@@ -66,15 +78,15 @@ final class TrackCrudController extends AbstractCrudController
         yield SlugField::new('slug', 'Slug')
             ->setTargetFieldName('title')
             ->setColumns(4)
-            ->setHelp('Используется в URL страницы трека.');
+            ->setHelp('Используется в URL и API.');
 
         yield AssociationField::new('album', 'Альбом')
             ->autocomplete()
             ->setColumns(6);
-        yield IntegerField::new('trackNumber', '№ в альбоме')->setColumns(2);
         yield ChoiceField::new('type', 'Тип')
             ->setChoices(self::typeChoices())
-            ->setColumns(4);
+            ->setColumns(3);
+        yield IntegerField::new('trackNumber', '№ в альбоме')->setColumns(3);
 
         yield BooleanField::new('published', 'Опубликован')->setColumns(3);
         yield TextField::new('genre', 'Жанр')->setColumns(9);

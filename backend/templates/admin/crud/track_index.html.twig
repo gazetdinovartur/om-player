@@ -1,0 +1,18 @@
+{% extends '@EasyAdmin/crud/index.html.twig' %}
+
+{% block main %}
+    <p class="track-index-sort-hint">
+        Перетащите строку за маркер <span class="track-index-sort-hint__grip" aria-hidden="true">⋮⋮</span>
+        внутри одного альбома — порядок сохранится автоматически.
+        Удобнее отфильтровать список по альбому.
+    </p>
+    {{ parent() }}
+{% endblock %}
+
+{% block entity_row_attributes %}
+    {% set track = entity.instance %}
+    {% if track.album %}
+        data-album-id="{{ track.album.id }}"
+        data-track-sortable="true"
+    {% endif %}
+{% endblock %}

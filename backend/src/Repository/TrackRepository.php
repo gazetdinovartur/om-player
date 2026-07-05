@@ -81,8 +81,13 @@ class TrackRepository extends ServiceEntityRepository
         $q = '%'.mb_strtolower(trim($query)).'%';
 
         return $this->createQueryBuilder('t')
+            ->join('t.album', 'a')
+            ->join('a.artist', 'ar')
             ->andWhere('t.published = true')
-            ->andWhere('LOWER(t.title) LIKE :q OR LOWER(t.description) LIKE :q')
+            ->andWhere('a.published = true')
+            ->andWhere(
+                'LOWER(t.title) LIKE :q OR LOWER(t.description) LIKE :q OR LOWER(ar.name) LIKE :q OR LOWER(a.title) LIKE :q',
+            )
             ->setParameter('q', $q)
             ->orderBy('t.title', 'ASC')
             ->setMaxResults(50)

@@ -73,7 +73,7 @@ final class AlbumCrudController extends AbstractCrudController
         ])->setColumns(3);
         yield DateField::new('releasedAt', 'Дата релиза')->setColumns(3);
         yield BooleanField::new('published', 'Опубликован')->setColumns(3);
-        yield IntegerField::new('sortOrder', 'Порядок')->setColumns(3);
+        yield IntegerField::new('sortOrder', 'Порядок в каталоге')->setColumns(3);
         yield TextareaField::new('description', 'Описание')->hideOnIndex()->setColumns(12)->setNumOfRows(4);
 
         if ($pageName !== Crud::PAGE_INDEX) {
@@ -84,18 +84,19 @@ final class AlbumCrudController extends AbstractCrudController
 
         if ($pageName === Crud::PAGE_EDIT) {
             yield FormField::addFieldset('Треки');
-            yield CollectionField::new('tracks', 'Порядок треков')
+            yield CollectionField::new('tracks', 'Список треков')
                 ->useEntryCrudForm(AlbumTrackCrudController::class)
                 ->setEntryIsComplex(false)
                 ->allowAdd(false)
                 ->allowDelete(false)
                 ->setFormTypeOption('by_reference', false)
-                ->addCssClass('field-collection-sortable')
+                ->addCssClass('field-collection-sortable field-collection-sortable--album-tracks')
                 ->setFormTypeOption('attr', [
                     'data-sort-field' => 'trackNumber',
+                    'class' => 'om-sortable-widget',
                 ])
                 ->setColumns(12)
-                ->setHelp('Перетащите строки за маркер слева, чтобы изменить порядок.');
+                ->setHelp('Перетащите строку за маркер слева — порядок сохранится автоматически.');
         }
     }
 
@@ -110,7 +111,16 @@ final class AlbumCrudController extends AbstractCrudController
     {
         \assert($entityInstance instanceof Album);
         $this->applyCoverUpload($entityInstance);
+        $this->renumberAlbumTracks($entityInstance);
         parent::updateEntity($entityManager, $entityInstance);
+    }
+
+    private function renumberAlbumTracks(Album $album): void
+    {
+        $position = 1;
+        foreach ($album->getTracks() as $track) {
+            $track->setTrackNumber($position++);
+        }
     }
 
     private function applyCoverUpload(Album $album): void

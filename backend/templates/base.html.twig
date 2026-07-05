@@ -15,6 +15,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
     <noscript><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
     <link rel="stylesheet" href="{{ asset('css/site.css') }}">
+    <script src="{{ asset('js/om-audio-root.js') }}"></script>
     <script type="module" src="{{ asset('js/turbo.es2017-esm.js') }}"></script>
     {% block head %}{% endblock %}
 </head>
@@ -40,7 +41,7 @@
             </a>
             <nav class="site-nav site-nav--desktop" aria-label="Основная навигация">
                 <a href="{{ path('web_music_catalog') }}" data-turbo-preload>Альбомы</a>
-                <a href="{{ path('web_music_playlists') }}" data-turbo-preload>Плейлисты</a>
+                <a href="{{ path('web_music_favorites') }}" data-turbo-preload>Любимое</a>
                 <a href="{{ path('web_about') }}" data-turbo-preload>О проекте</a>
                 <a href="{{ path('admin') }}" data-turbo="false">Управление</a>
             </nav>
@@ -71,7 +72,7 @@
             <div class="site-mobile-menu__panel">
                 <nav class="site-mobile-nav" aria-label="Мобильная навигация">
                     <a href="{{ path('web_music_catalog') }}" data-turbo-preload>Альбомы</a>
-                <a href="{{ path('web_music_playlists') }}" data-turbo-preload>Плейлисты</a>
+                <a href="{{ path('web_music_favorites') }}" data-turbo-preload>Любимое</a>
                     <a href="{{ path('web_about') }}" data-turbo-preload>О проекте</a>
                     <a href="{{ path('admin') }}" data-turbo="false">Управление</a>
                 </nav>
@@ -86,13 +87,6 @@
     {% include 'partials/footer.html.twig' %}
 
     <div class="mini-player-shell" id="om-persistent-player" data-turbo-permanent>
-        <audio
-            id="om-audio-engine"
-            data-turbo-permanent
-            preload="auto"
-            playsinline
-            hidden
-        ></audio>
         <om-player
             mode="mini"
             id="om-global"
@@ -106,6 +100,7 @@
     <script src="{{ asset('js/theme.js') }}" data-turbo-eval="false"></script>
     <script src="{{ asset('js/site-nav.js') }}" defer data-turbo-eval="false"></script>
     <script src="{{ asset('js/om-hero-viz.js') }}" defer data-turbo-eval="false"></script>
+    <script src="{{ asset('js/om-favorites.js') }}" defer data-turbo-eval="false"></script>
     <script src="{{ asset('js/player-bridge.js') }}" defer data-turbo-eval="false"></script>
     {% block scripts %}{% endblock %}
 </body>

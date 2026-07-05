@@ -84,12 +84,13 @@ final class PlaylistCrudController extends AbstractCrudController
                 ->allowAdd()
                 ->allowDelete()
                 ->setFormTypeOption('by_reference', false)
-                ->addCssClass('field-collection-sortable')
+                ->addCssClass('field-collection-sortable field-collection-sortable--playlist-items')
                 ->setFormTypeOption('attr', [
                     'data-sort-field' => 'sortOrder',
+                    'class' => 'om-sortable-widget',
                 ])
                 ->setColumns(12)
-                ->setHelp('Добавьте треки и перетащите строки для изменения порядка.');
+                ->setHelp('Добавьте треки и перетащите строки — порядок сохранится автоматически.');
         }
     }
 
@@ -98,6 +99,7 @@ final class PlaylistCrudController extends AbstractCrudController
         \assert($entityInstance instanceof Playlist);
         $this->applyCoverUpload($entityInstance);
         $this->linkPlaylistItems($entityInstance);
+        $this->renumberPlaylistItems($entityInstance);
         parent::persistEntity($entityManager, $entityInstance);
     }
 
@@ -106,7 +108,16 @@ final class PlaylistCrudController extends AbstractCrudController
         \assert($entityInstance instanceof Playlist);
         $this->applyCoverUpload($entityInstance);
         $this->linkPlaylistItems($entityInstance);
+        $this->renumberPlaylistItems($entityInstance);
         parent::updateEntity($entityManager, $entityInstance);
+    }
+
+    private function renumberPlaylistItems(Playlist $playlist): void
+    {
+        $position = 1;
+        foreach ($playlist->getItems() as $item) {
+            $item->setSortOrder($position++);
+        }
     }
 
     private function applyCoverUpload(Playlist $playlist): void

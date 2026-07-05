@@ -211,6 +211,15 @@ class Album
         return $this;
     }
 
+    public function removeTrack(Track $track): static
+    {
+        if ($this->tracks->removeElement($track) && $track->getAlbum() === $this) {
+            $track->setAlbum(null);
+        }
+
+        return $this;
+    }
+
     public function getTrackCount(): int
     {
         return $this->tracks->count();

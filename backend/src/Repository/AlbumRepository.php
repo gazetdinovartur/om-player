@@ -91,7 +91,9 @@ class AlbumRepository extends ServiceEntityRepository
             ->addSelect('ar')
             ->leftJoin('a.tracks', 't')
             ->andWhere('a.published = true')
-            ->andWhere('LOWER(a.title) LIKE :q OR LOWER(t.title) LIKE :q')
+            ->andWhere(
+                'LOWER(a.title) LIKE :q OR LOWER(ar.name) LIKE :q OR (t.published = true AND LOWER(t.title) LIKE :q)',
+            )
             ->setParameter('q', $q)
             ->orderBy('a.title', 'ASC')
             ->getQuery()

@@ -9,6 +9,9 @@ interface MediaHandlers {
 }
 
 const AUDIO_ID = 'om-audio-engine';
+const AUDIO_ROOT_ID = 'om-persistent-root';
+const SILENT_WAV =
+  'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
 
 export class AudioEngine {
   private audio: HTMLAudioElement | null = null;
@@ -30,12 +33,98 @@ export class AudioEngine {
   private onSpuriousPauseFn: (() => void) | null = null;
   private onPlaybackStartedFn: (() => void) | null = null;
   private onLoadErrorFn: ((message: string) => void) | null = null;
+  private playbackUnlocked = false;
+  private playInFlight: Promise<void> | null = null;
+
+  /** Call synchronously inside click/pointerdown — unlocks autoplay after async loads. */
+  unlockUserGesture(): void {
+    const audio = this.acquireAudioElement();
+    if (!audio.paused && !audio.ended) {
+      this.markPlaybackUnlocked(audio);
+      return;
+    }
+
+    const savedSrc = audio.currentSrc || audio.src;
+    if (savedSrc && savedSrc !== SILENT_WAV) {
+      this.markPlaybackUnlocked(audio);
+      return;
+    }
+
+    const wasMuted = audio.muted;
+    audio.muted = true;
+
+    const finish = (ok: boolean): void => {
+      audio.muted = wasMuted;
+      if (ok) {
+        this.markPlaybackUnlocked(audio);
+      }
+    };
+
+    audio.src = SILENT_WAV;
+    void audio
+      .play()
+      .then(() => {
+        if (!audio.paused) {
+          this.runIntentionalPause(() => {
+            audio.pause();
+          });
+        }
+        if (audio.currentSrc === SILENT_WAV) {
+          audio.removeAttribute('src');
+          audio.load();
+        }
+        finish(true);
+      })
+      .catch(() => finish(false));
+  }
+
+  isPlaybackUnlocked(): boolean {
+    if (this.playbackUnlocked) return true;
+    const audio = document.getElementById(AUDIO_ID) as HTMLAudioElement | null;
+    return audio?.dataset.omPlaybackUnlocked === '1';
+  }
+
+  private markPlaybackUnlocked(audio: HTMLAudioElement): void {
+    this.playbackUnlocked = true;
+    audio.dataset.omPlaybackUnlocked = '1';
+  }
+
+  private clearPlaybackUnlocked(audio: HTMLAudioElement): void {
+    this.playbackUnlocked = false;
+    delete audio.dataset.omPlaybackUnlocked;
+  }
+
+  private isNotAllowedError(err: unknown): boolean {
+    return err instanceof DOMException && err.name === 'NotAllowedError';
+  }
 
   private safePlay(audio: HTMLAudioElement): Promise<void> {
     return audio.play().catch((err: unknown) => {
+      if (this.isNotAllowedError(err)) {
+        this.clearPlaybackUnlocked(audio);
+        return;
+      }
       console.error('OmPlayer: play failed', err);
       throw err;
     });
+  }
+
+  /** Deduped play — prevents double-start glitches during Turbo navigation. */
+  private requestPlay(audio: HTMLAudioElement): Promise<void> {
+    if (!audio.paused && !audio.ended) {
+      return Promise.resolve();
+    }
+    if (this.playInFlight) {
+      return this.playInFlight;
+    }
+    this.playInFlight = this.safePlay(audio)
+      .then(() => {
+        this.ensurePlaybackRunning();
+      })
+      .finally(() => {
+        this.playInFlight = null;
+      });
+    return this.playInFlight;
   }
 
   private runIntentionalPause(action: () => void): void {
@@ -162,7 +251,11 @@ export class AudioEngine {
         if (finished) return;
         finished = true;
         if (autoplay) {
-          void this.safePlay(audio).catch(() => {
+          void this.safePlay(audio).then(() => {
+            if (audio.paused) {
+              this.onTick?.(this.getPositionMs());
+            }
+          }).catch(() => {
             this.onLoadErrorFn?.('Не удалось воспроизвести файл');
           });
         } else {
@@ -195,54 +288,50 @@ export class AudioEngine {
   ): boolean {
     if (!audio.src || audio.ended || audio.error) return false;
     if (this.track?.slug !== track.slug) return false;
-    if (startMs > 0 && Math.abs(this.getPositionMs() - startMs) > 500) return false;
+
+    const positionMs = this.getPositionMs();
+    const hasProgress = positionMs > 250 || audio.currentTime > 0.25;
+
+    if (hasProgress) {
+      if (startMs > 0 && Math.abs(positionMs - startMs) > 2000) {
+        return false;
+      }
+      return true;
+    }
+
     if (this.sameStreamUrl(audio.src, url)) return true;
-    return !audio.paused || audio.currentTime > 0.25;
+    return !audio.paused;
+  }
+
+  private resolveAudioElement(): HTMLAudioElement | null {
+    return document.getElementById(AUDIO_ID) as HTMLAudioElement | null;
+  }
+
+  private bindAudioElement(el: HTMLAudioElement): HTMLAudioElement {
+    if (this.audio !== el) {
+      this.wireAudioElement(el);
+      this.audio = el;
+    }
+    return el;
   }
 
   private acquireAudioElement(): HTMLAudioElement {
-    const shell = document.getElementById('om-persistent-player');
-    const domEl = document.getElementById(AUDIO_ID) as HTMLAudioElement | null;
-
-    if (this.audio?.isConnected) {
-      return this.audio;
+    const domEl = this.resolveAudioElement();
+    if (domEl) {
+      return this.bindAudioElement(domEl);
     }
 
-    if (this.audio?.src && !this.audio.isConnected) {
-      (shell ?? document.body).appendChild(this.audio);
-      return this.audio;
-    }
-
-    if (domEl?.isConnected) {
-      this.wireAudioElement(domEl);
-      this.audio = domEl;
-      return domEl;
-    }
-
-    if (domEl?.src && !domEl.isConnected) {
-      (shell ?? document.body).appendChild(domEl);
-      this.wireAudioElement(domEl);
-      this.audio = domEl;
-      return domEl;
-    }
-
-    let el = domEl;
-    if (!el) {
-      el = document.createElement('audio');
-      el.id = AUDIO_ID;
-      el.setAttribute('data-turbo-permanent', '');
-      el.preload = 'auto';
-      el.setAttribute('playsinline', '');
-      el.hidden = true;
-    }
-
-    if (!el.isConnected) {
-      (shell ?? document.body).appendChild(el);
-    }
-
-    this.wireAudioElement(el);
-    this.audio = el;
-    return el;
+    const root =
+      document.getElementById(AUDIO_ROOT_ID) ??
+      document.getElementById('om-persistent-player') ??
+      document.documentElement;
+    const el = document.createElement('audio');
+    el.id = AUDIO_ID;
+    el.preload = 'auto';
+    el.setAttribute('playsinline', '');
+    el.hidden = true;
+    root.appendChild(el);
+    return this.bindAudioElement(el);
   }
 
   private wireAudioElement(el: HTMLAudioElement): void {
@@ -259,11 +348,15 @@ export class AudioEngine {
       this.onPlaybackStartedFn?.();
     });
     el.addEventListener('pause', () => {
+      if (el.dataset.omNavigating === '1') {
+        this.stopTimer();
+        return;
+      }
       this.stopTimer();
-      this.syncMediaSessionState();
       if (!this.suppressSpuriousPause && el.src && !el.ended) {
         this.onSpuriousPauseFn?.();
       }
+      this.syncMediaSessionState();
     });
     el.addEventListener('error', () => {
       console.error('OmPlayer: audio error', el.src, el.error);
@@ -282,43 +375,20 @@ export class AudioEngine {
   }
 
   ensureAudioConnected(): void {
-    const shell = document.getElementById('om-persistent-player');
-    const domEl = document.getElementById(AUDIO_ID) as HTMLAudioElement | null;
-
-    if (this.audio?.isConnected) return;
-
-    if (this.audio?.src && !this.audio.isConnected) {
-      (shell ?? document.body).appendChild(this.audio);
-      return;
+    const domEl = this.resolveAudioElement();
+    if (domEl) {
+      this.bindAudioElement(domEl);
     }
-
-    if (domEl?.src && !domEl.isConnected) {
-      (shell ?? document.body).appendChild(domEl);
-    }
-
-    if (domEl?.isConnected) {
-      if (this.audio !== domEl) {
-        this.wireAudioElement(domEl);
-        this.audio = domEl;
-      }
-      return;
-    }
-
-    this.acquireAudioElement();
   }
 
-  /** Read the live audio element without moving it in the DOM. */
+  /** Read the live audio element — never moves it in the DOM. */
   peekAudioElement(): HTMLAudioElement | null {
-    const domEl = document.getElementById(AUDIO_ID) as HTMLAudioElement | null;
-    if (domEl?.isConnected) {
-      if (this.audio !== domEl) {
-        this.wireAudioElement(domEl);
-        this.audio = domEl;
-      }
-      return domEl;
+    const domEl = this.resolveAudioElement();
+    if (domEl) {
+      return this.bindAudioElement(domEl);
     }
-    if (this.audio?.isConnected) return this.audio;
-    return this.audio ?? domEl;
+    if (this.audio) return this.audio;
+    return null;
   }
 
   getActiveAudioElement(): HTMLAudioElement | null {
@@ -331,13 +401,7 @@ export class AudioEngine {
     const audio = this.peekAudioElement();
     if (!audio?.src || audio.ended) return false;
     if (!audio.paused) return true;
-
-    void this.safePlay(audio)
-      .then(() => {
-        this.ensurePlaybackRunning();
-      })
-      .catch(() => {});
-
+    void this.requestPlay(audio).catch(() => {});
     return false;
   }
 
@@ -377,8 +441,8 @@ export class AudioEngine {
     if (!audio?.src) return false;
     if (!audio.paused) return true;
     try {
-      await this.safePlay(audio);
-      return true;
+      await this.requestPlay(audio);
+      return !audio.paused;
     } catch {
       return false;
     }

@@ -24,10 +24,32 @@ final class MusicApiControllerTest extends WebTestCase
     public function testOpenApiYamlIsServed(): void
     {
         $client = static::createClient();
-        $client->request('GET', '/api/openapi.yaml');
+        $client->request('GET', '/api/openapi.yaml', [], [], [
+            'HTTP_ACCEPT' => 'application/yaml',
+        ]);
 
         self::assertResponseIsSuccessful();
         self::assertStringContainsString('OmPlayer API', (string) $client->getResponse()->getContent());
+    }
+
+    public function testOpenApiYamlRedirectsBrowsersToDocs(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/api/openapi.yaml', [], [], [
+            'HTTP_ACCEPT' => 'text/html,application/xhtml+xml',
+        ]);
+
+        self::assertResponseRedirects('/api/docs');
+    }
+
+    public function testApiDocsPageLoads(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/api/docs');
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('Документация OmPlayer API', (string) $client->getResponse()->getContent());
+        self::assertStringContainsString('swagger-ui', (string) $client->getResponse()->getContent());
     }
 
     public function testHomePageLoads(): void

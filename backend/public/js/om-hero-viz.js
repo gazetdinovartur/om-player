@@ -12,6 +12,8 @@
   let pendingSyncTimer = 0;
   let hideTimer = 0;
   let fadeTimer = 0;
+  let stallFrames = 0;
+  let lastFrameAt = 0;
   const mobileMq = window.matchMedia('(max-width: 768px)');
 
   function isMobileViewport() {
@@ -65,6 +67,10 @@
     return !!document.getElementById('hero-viz');
   }
 
+  function isAudioNavigating() {
+    return getAudio()?.dataset?.omNavigating === '1';
+  }
+
   function bindElements() {
     viz = document.getElementById('hero-viz');
     canvas = document.getElementById('hero-viz-canvas');
@@ -92,9 +98,36 @@
     if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
+  function audioSrc(audio) {
+    return audio?.currentSrc || audio?.src || '';
+  }
+
+  function releaseGraph() {
+    if (graph?.audioCtx && graph.audioCtx.state !== 'closed') {
+      void graph.audioCtx.close().catch(() => {});
+    }
+    graph = null;
+    window.__omVizGraph = null;
+    timeData = null;
+    smooth = null;
+    displaySmooth = null;
+    stallFrames = 0;
+  }
+
   function ensureGraph(audio) {
-    if (!audio?.src) return null;
-    if (window.__omVizGraph?.element === audio) return window.__omVizGraph;
+    if (!audio?.src) {
+      releaseGraph();
+      return null;
+    }
+
+    const src = audioSrc(audio);
+    const cached = window.__omVizGraph;
+    if (cached?.element === audio && cached?.src === src && cached?.analyser) {
+      graph = cached;
+      return graph;
+    }
+
+    releaseGraph();
 
     try {
       if (typeof audio.captureStream !== 'function') return null;
@@ -103,16 +136,27 @@
       const source = audioCtx.createMediaStreamSource(stream);
       const analyser = audioCtx.createAnalyser();
       analyser.fftSize = 512;
-      analyser.smoothingTimeConstant = 0.96;
+      analyser.smoothingTimeConstant = 0.82;
       source.connect(analyser);
-      graph = { element: audio, audioCtx, analyser };
+      graph = { element: audio, src, audioCtx, analyser };
       window.__omVizGraph = graph;
       timeData = new Uint8Array(analyser.fftSize);
       smooth = new Float32Array(analyser.fftSize);
       displaySmooth = new Float32Array(analyser.fftSize);
       return graph;
     } catch {
+      releaseGraph();
       return null;
+    }
+  }
+
+  async function resumeGraphContext() {
+    if (graph?.audioCtx?.state === 'suspended') {
+      try {
+        await graph.audioCtx.resume();
+      } catch {
+        /* ignore */
+      }
     }
   }
 
@@ -214,6 +258,29 @@
     if (!ctx || !canvas || !graph?.analyser || !timeData || !smooth || !displaySmooth) return;
     graph.analyser.getByteTimeDomainData(timeData);
 
+    let activity = 0;
+    for (let i = 0; i < timeData.length; i += 8) {
+      activity += Math.abs(timeData[i] - 128);
+    }
+
+    if (activity < 6) {
+      stallFrames += 1;
+      if (stallFrames > 54) {
+        releaseGraph();
+        const audio = getAudio();
+        const rebuilt = ensureGraph(audio);
+        if (rebuilt?.analyser) {
+          void resumeGraphContext();
+          stallFrames = 0;
+        } else {
+          drawFallback(phase);
+        }
+        return;
+      }
+    } else {
+      stallFrames = 0;
+    }
+
     const w = canvas.width / dpr;
     const h = canvas.height / dpr;
     const layout = waveLayout(h);
@@ -221,7 +288,7 @@
 
     for (let i = 0; i < timeData.length; i += 1) {
       const v = (timeData[i] - 128) / 128;
-      smooth[i] = smooth[i] * 0.91 + v * 0.09;
+      smooth[i] = smooth[i] * 0.88 + v * 0.12;
     }
 
     for (let i = 0; i < smooth.length; i += 1) {
@@ -251,7 +318,14 @@
       scheduleHide();
       return;
     }
+
+    lastFrameAt = now;
     const phase = now / 1000;
+    const audio = getAudio();
+    if (!graph?.analyser || graph.src !== audioSrc(audio)) {
+      ensureGraph(audio);
+      void resumeGraphContext();
+    }
     if (graph?.analyser) drawWave(phase);
     else drawFallback(phase);
     raf = requestAnimationFrame(frame);
@@ -322,11 +396,12 @@
     if (!isPlaying()) return;
 
     const audio = getAudio();
-    const g = ensureGraph(audio);
-    if (g?.audioCtx?.state === 'suspended') void g.audioCtx.resume();
+    ensureGraph(audio);
+    void resumeGraphContext();
     if (!syncVizLayout()) return;
 
     showViz();
+    stallFrames = 0;
     if (!raf) raf = requestAnimationFrame(frame);
   }
 
@@ -382,22 +457,48 @@
     if (!audio.dataset.omHeroVizBound) {
       audio.dataset.omHeroVizBound = '1';
       audio.addEventListener('play', () => {
+        if (isAudioNavigating()) return;
         clearTimeout(hideTimer);
-        if (onHomePage()) start();
+        if (!onHomePage()) return;
+        const src = audioSrc(audio);
+        if (graph?.element === audio && graph?.src === src && graph?.analyser) {
+          start();
+          return;
+        }
+        releaseGraph();
+        start();
       });
       audio.addEventListener('pause', () => {
         if (onHomePage()) scheduleHide();
       });
-      audio.addEventListener('ended', stopAll);
+      audio.addEventListener('ended', () => {
+        releaseGraph();
+        stopAll();
+      });
+      audio.addEventListener('emptied', () => {
+        releaseGraph();
+      });
+      audio.addEventListener('loadeddata', () => {
+        if (isAudioNavigating()) return;
+        if (!onHomePage() || !isPlaying()) return;
+        releaseGraph();
+        start();
+      });
     }
   }
 
   function init() {
-    bindAudio(getAudio());
+    const audio = getAudio();
+    bindAudio(audio);
+    if (graph && audio && graph.src !== audioSrc(audio)) {
+      releaseGraph();
+    }
     sync();
   }
 
   function scheduleInit() {
+    if (isAudioNavigating()) return;
+    if (isPlaying() && !onHomePage()) return;
     requestAnimationFrame(() => {
       requestAnimationFrame(init);
     });
@@ -407,14 +508,35 @@
     if (watchTimer) return;
     watchTimer = window.setInterval(() => {
       if (isMobileViewport() || !onHomePage()) return;
-      if (isPlaying() && (!viz || viz.hidden || !viz.classList.contains('hero-viz--visible'))) {
+      if (!isPlaying()) return;
+
+      const audio = getAudio();
+      if (graph && audio && graph.src !== audioSrc(audio)) {
+        releaseGraph();
+      }
+
+      const stalled = raf !== 0 && lastFrameAt > 0 && performance.now() - lastFrameAt > 900;
+      const needsRestart =
+        !raf ||
+        stalled ||
+        !viz ||
+        viz.hidden ||
+        !viz.classList.contains('hero-viz--visible');
+
+      if (needsRestart) {
+        if (raf) cancelAnimationFrame(raf);
+        raf = 0;
         start();
       }
     }, 350);
   }
 
   ['om:play', 'om:session-restore', 'om:track-change'].forEach((ev) => {
-    window.addEventListener(ev, scheduleInit);
+    window.addEventListener(ev, () => {
+      if (isAudioNavigating()) return;
+      releaseGraph();
+      scheduleInit();
+    });
   });
   ['om:pause', 'om:queue-end'].forEach((ev) => {
     window.addEventListener(ev, () => {
@@ -426,6 +548,11 @@
   document.addEventListener('turbo:load', scheduleInit);
   document.addEventListener('turbo:render', scheduleInit);
   window.addEventListener('pageshow', scheduleInit);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !onHomePage() || !isPlaying()) return;
+    releaseGraph();
+    void resumeGraphContext().then(() => start());
+  });
   window.addEventListener('resize', () => {
     if (!onHomePage() || !bindElements()) return;
     if (isMobileViewport()) {

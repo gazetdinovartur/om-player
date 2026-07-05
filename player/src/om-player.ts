@@ -3,16 +3,23 @@ import { OmApiClient } from './api/client';
 import { withAbsoluteStream } from './api/resolve-url';
 import type { TrackSummary } from './api/types';
 import {
+  iconCheck,
+  iconChevronDown,
+  iconGrip,
   iconHeart,
   iconHeartFilled,
+  iconListMusic,
   iconNext,
   iconPause,
   iconPlay,
+  iconPlus,
   iconPrev,
+  iconQueueNext,
   iconRepeat,
   iconRepeatOne,
   iconShuffle,
   iconSpinner,
+  iconTrash,
   iconVolume,
 } from './icons';
 import { getFavoritesStore } from './state/favorites';
@@ -25,6 +32,18 @@ function formatMs(ms: number): string {
   const s = Math.floor(ms / 1000);
   const m = Math.floor(s / 60);
   return `${m}:${String(s % 60).padStart(2, '0')}`;
+}
+
+function pluralTracks(n: number): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return `${n} трек`;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${n} трека`;
+  return `${n} треков`;
+}
+
+function getGlobalPlayerEl(): (HTMLElement & { showPublic?: () => void }) | null {
+  return document.getElementById('om-global') as (HTMLElement & { showPublic?: () => void }) | null;
 }
 
 export class OmPlayer extends LitElement {
@@ -47,6 +66,11 @@ export class OmPlayer extends LitElement {
     seeking: { state: true },
     scrubMs: { state: true },
     previewTrack: { state: true },
+    queueExpanded: { state: true },
+    pageTracks: { state: true },
+    queueNotice: { state: true },
+    queueDragFrom: { state: true },
+    queueDragOver: { state: true },
   };
 
   declare mode: 'embed' | 'mini' | 'full';
@@ -65,6 +89,11 @@ export class OmPlayer extends LitElement {
   declare seeking: boolean;
   declare scrubMs: number;
   declare previewTrack: TrackSummary | null;
+  declare queueExpanded: boolean;
+  declare pageTracks: TrackSummary[];
+  declare queueNotice: string;
+  declare queueDragFrom: number | null;
+  declare queueDragOver: number | null;
 
   constructor() {
     super();
@@ -84,6 +113,11 @@ export class OmPlayer extends LitElement {
     this.seeking = false;
     this.scrubMs = 0;
     this.previewTrack = null;
+    this.queueExpanded = false;
+    this.pageTracks = [];
+    this.queueNotice = '';
+    this.queueDragFrom = null;
+    this.queueDragOver = null;
   }
 
   private store = getPlayerStore();
@@ -92,8 +126,21 @@ export class OmPlayer extends LitElement {
   private unsub: (() => void) | null = null;
   private unsubFav: (() => void) | null = null;
   private restoreInFlight: Promise<void> | null = null;
+  private playGestureHandled = false;
   private progressTimer: number | null = null;
   private heartClickHandler: ((e: Event) => void) | null = null;
+  private escapeHandler: ((e: KeyboardEvent) => void) | null = null;
+  private sheetDragStartY = 0;
+  private sheetDragOffset = 0;
+  private sheetDragging = false;
+  private queueDragPointerId: number | null = null;
+  private queueDragCleanup: (() => void) | null = null;
+  private readonly onCmdNext = (): void => {
+    this.store.next();
+  };
+  private readonly onCmdPrev = (): void => {
+    this.store.prev();
+  };
 
   connectedCallback(): void {
     super.connectedCallback();
@@ -118,34 +165,31 @@ export class OmPlayer extends LitElement {
     });
     if (this.mode === 'mini') {
       this.store.setRestoreHandler(() => this.restoreSessionPublic());
-      const audio = this.store.engine.getAudioElement();
-      if (audio?.src && !audio.ended) {
+      if (this.store.hasActiveSession() || this.hasHealthySession()) {
         this.visible = true;
       } else {
         const saved = this.store.loadSaved();
-        const needsRestore =
-          !this.store.getCurrentTrack() &&
-          !this.store.engine.hasActivePlayback() &&
-          !!saved?.trackSlug;
-        if (needsRestore) {
-          const run = (): void => {
-            if (this.isConnected) void this.restoreSessionPublic();
-          };
-          if (typeof requestIdleCallback === 'function') {
-            requestIdleCallback(run, { timeout: 2000 });
-          } else {
-            setTimeout(run, 120);
-          }
+        if (saved?.trackSlug) {
+          queueMicrotask(() => {
+            if (
+              !this.isConnected ||
+              this.store.hasActiveSession() ||
+              this.hasHealthySession()
+            ) {
+              return;
+            }
+            void this.restoreSessionPublic();
+          });
         }
       }
     }
     if (this.store.getCurrentTrack()) this.visible = true;
 
-    this.addEventListener('om:cmd-next', () => this.store.next());
-    this.addEventListener('om:cmd-prev', () => this.store.prev());
+    this.addEventListener('om:cmd-next', this.onCmdNext);
+    this.addEventListener('om:cmd-prev', this.onCmdPrev);
 
     if (this.mode === 'full') {
-      this.hydrateQueueFromPage();
+      this.loadPageTracksFromPage();
     } else if (this.mode === 'embed' && this.track) {
       if (this.autoPlay) void this.playSlug(this.track);
       else this.scheduleEmbedPreload();
@@ -166,14 +210,27 @@ export class OmPlayer extends LitElement {
       this.requestUpdate();
     };
     this.renderRoot.addEventListener('click', this.heartClickHandler);
+
+    this.escapeHandler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && this.queueExpanded) this.closeQueueExpanded();
+    };
+    document.addEventListener('keydown', this.escapeHandler);
   }
 
   disconnectedCallback(): void {
     this.stopProgressTimer();
+    this.removeEventListener('om:cmd-next', this.onCmdNext);
+    this.removeEventListener('om:cmd-prev', this.onCmdPrev);
     if (this.heartClickHandler) {
       this.renderRoot.removeEventListener('click', this.heartClickHandler);
       this.heartClickHandler = null;
     }
+    if (this.escapeHandler) {
+      document.removeEventListener('keydown', this.escapeHandler);
+      this.escapeHandler = null;
+    }
+    this.clearQueueDrag();
+    this.setBodyScrollLock(false);
     this.unsub?.();
     this.unsubFav?.();
     this.unsub = null;
@@ -266,7 +323,9 @@ export class OmPlayer extends LitElement {
   }
 
   private async resolveQueueStreams(tracks: TrackSummary[]): Promise<TrackSummary[]> {
-    if (!this.client || !this.queueNeedsStreams(tracks)) return tracks;
+    if (!this.client || !this.queueNeedsStreams(tracks)) {
+      return tracks.map((t) => withAbsoluteStream(this.apiBase, t));
+    }
     if (this.album) {
       const { data } = await this.client.getAlbumTracks(this.album);
       return this.mergeQueueStreams(data, tracks).map((t) => withAbsoluteStream(this.apiBase, t));
@@ -285,7 +344,11 @@ export class OmPlayer extends LitElement {
       const tracks = await this.resolveQueueStreams(this.queue);
       this.store.originalQueue = this.mergeQueueStreams(tracks, this.store.originalQueue);
       this.store.queue = [...tracks];
-      this.store.setQueue(tracks, index);
+      const startMs =
+        tracks[index]?.slug === this.store.getCurrentTrack()?.slug
+          ? this.store.getPositionMs()
+          : 0;
+      this.store.setQueue(tracks, index, startMs);
     } catch {
       if (this.isConnected) this.error = 'Трек недоступен';
     }
@@ -362,7 +425,6 @@ export class OmPlayer extends LitElement {
         class=${cls}
         @pointerdown=${this.onPlayPointerDown}
         @click=${this.onPlayClick}
-        ?disabled=${this.loading}
         aria-label=${playing ? 'Пауза' : 'Воспроизвести'}
         aria-busy=${this.loading ? 'true' : 'false'}
       >
@@ -406,14 +468,14 @@ export class OmPlayer extends LitElement {
     return !!this.store.getCurrentTrack() && this.resolveScrubDurationMs() > 0;
   }
 
-  private renderProgress(duration: number, compact = false): unknown {
+  private renderProgress(duration: number, compact = false, inline = false): unknown {
     const max = this.resolveScrubDurationMs() || duration || 1;
     const pos = this.displayPositionMs;
     const pct = Math.min(100, Math.max(0, (pos / max) * 100));
     const readonly = !this.canScrub();
     return html`
-      <div class="progress-wrap${compact ? ' progress-wrap--compact' : ''}${this.seeking ? ' is-scrubbing' : ''}${readonly ? ' progress-wrap--readonly' : ''}">
-        <span class="time">${formatMs(pos)}</span>
+      <div class="progress-wrap${compact ? ' progress-wrap--compact' : ''}${inline ? ' progress-wrap--inline' : ''}${this.seeking ? ' is-scrubbing' : ''}${readonly ? ' progress-wrap--readonly' : ''}">
+        ${inline ? nothing : html`<span class="time">${formatMs(pos)}</span>`}
         <div
           class="progress-track"
           role="slider"
@@ -429,7 +491,7 @@ export class OmPlayer extends LitElement {
           <div class="progress-fill" style=${`width:${pct}%`}></div>
           <div class="progress-thumb" style=${`left:${pct}%`} aria-hidden="true"></div>
         </div>
-        <span class="time">${formatMs(max)}</span>
+        ${inline ? nothing : html`<span class="time">${formatMs(max)}</span>`}
       </div>
     `;
   }
@@ -501,6 +563,54 @@ export class OmPlayer extends LitElement {
       : html`<div class=${cls}></div>`;
   }
 
+  private loadPageTracksFromPage(): boolean {
+    const sourceId = this.getAttribute('data-queue-source');
+    if (!sourceId) return false;
+
+    const node = document.getElementById(sourceId);
+    if (!node?.textContent) return false;
+
+    try {
+      const tracks = JSON.parse(node.textContent) as TrackSummary[];
+      if (!Array.isArray(tracks) || tracks.length === 0) return false;
+      this.pageTracks = tracks;
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private async playPageTrack(index: number): Promise<void> {
+    if (!this.client) return;
+
+    if (this.pageTracks.length === 0 && !this.loadPageTracksFromPage()) return;
+
+    this.store.engine.unlockUserGesture();
+    this.loading = true;
+    this.error = '';
+    try {
+      const tracks = await this.resolveQueueStreams(this.pageTracks);
+      this.pageTracks = tracks;
+      this.store.setQueue(tracks, index, 0, true, true);
+      this.visible = true;
+    } catch {
+      if (this.isConnected) this.error = 'Трек недоступен';
+    } finally {
+      if (this.isConnected) this.loading = false;
+    }
+  }
+
+  private showQueueNotice(message: string): void {
+    this.queueNotice = message;
+    this.requestUpdate();
+    window.setTimeout(() => {
+      if (this.queueNotice === message) {
+        this.queueNotice = '';
+        this.requestUpdate();
+      }
+    }, 2200);
+  }
+
   private hydrateQueueFromPage(): boolean {
     const sourceId = this.getAttribute('data-queue-source');
     if (!sourceId) return false;
@@ -527,13 +637,19 @@ export class OmPlayer extends LitElement {
   private async loadQueue(autoStart: boolean): Promise<void> {
     if (!this.client) return;
 
+    if (this.pageTracks.length === 0) {
+      this.loadPageTracksFromPage();
+    }
+
+    if (this.pageTracks.length > 0) {
+      if (autoStart) {
+        await this.playPageTrack(0);
+      }
+      return;
+    }
+
     if (this.hydrateQueueFromPage()) {
       if (autoStart && this.store.queue.length) {
-        const albumSlug = this.album || this.store.originalQueue[0]?.albumSlug || '';
-        if (albumSlug && this.shouldSkipAlbumStart(albumSlug)) {
-          this.visible = true;
-          return;
-        }
         this.loading = true;
         this.error = '';
         try {
@@ -555,10 +671,6 @@ export class OmPlayer extends LitElement {
     if (this.album && cachedAlbum === this.album && this.store.originalQueue.length > 0) {
       this.store.queue = [...this.store.originalQueue];
       if (autoStart && this.store.queue.length) {
-        if (this.shouldSkipAlbumStart(this.album)) {
-          this.visible = true;
-          return;
-        }
         this.store.setQueue(this.store.originalQueue, 0, 0, true, true);
         this.visible = true;
       }
@@ -570,17 +682,15 @@ export class OmPlayer extends LitElement {
     try {
       let tracks: TrackSummary[] = [];
       if (this.album) {
-        tracks = (await this.client.getAlbumTracks(this.album)).data;
+        tracks = (await this.client.getAlbumTracks(this.album)).data.map((t) =>
+          withAbsoluteStream(this.apiBase, t),
+        );
       } else if (this.playlist) {
         tracks = (await this.client.getPlaylistTracks(this.playlist)).tracks;
       }
       this.store.originalQueue = tracks;
       this.store.queue = [...tracks];
       if (autoStart && tracks.length) {
-        if (this.album && this.shouldSkipAlbumStart(this.album)) {
-          this.visible = true;
-          return;
-        }
         this.store.setQueue(tracks, 0, 0, true, true);
         this.visible = true;
       }
@@ -613,22 +723,15 @@ export class OmPlayer extends LitElement {
     }
   }
 
-  private shouldSkipAlbumStart(albumSlug: string): boolean {
-    if (!this.store.isPlaying()) return false;
-    const current = this.store.getCurrentTrack();
-    if (current?.albumSlug === albumSlug) return true;
-    return true;
-  }
-
   private async playAlbum(slug: string): Promise<void> {
     if (!this.client) return;
-    if (this.shouldSkipAlbumStart(slug)) return;
 
     this.loading = true;
     try {
       const { data } = await this.client.getAlbumTracks(slug);
       if (data.length) {
-        this.store.setQueue(data, 0, 0, true, true);
+        const tracks = data.map((t) => withAbsoluteStream(this.apiBase, t));
+        this.store.setQueue(tracks, 0, 0, true, true);
         this.visible = true;
       }
     } catch {
@@ -656,24 +759,18 @@ export class OmPlayer extends LitElement {
   }
 
   private onPlayPointerDown = (e: PointerEvent): void => {
-    if (this.loading || e.button !== 0) return;
+    if (e.button !== 0) return;
+    this.store.engine.unlockUserGesture();
 
-    if (this.mode === 'embed') {
-      if (this.isEmbedPlaying()) {
-        this.trySyncPlayPause();
+    if (this.mode === 'embed' && this.isEmbedPlaying()) {
+      this.playGestureHandled = this.trySyncPlayPause();
+      if (this.playGestureHandled) {
+        e.preventDefault();
       }
-      return;
-    }
-    if (this.mode === 'full' && !this.current && this.album) return;
-
-    if (this.trySyncPlayPause()) {
-      e.preventDefault();
     }
   };
 
   private onPlayClick = (e: Event): void => {
-    if (this.loading) return;
-
     if (this.mode === 'embed') {
       if (this.isEmbedPlaying()) {
         e.preventDefault();
@@ -689,8 +786,15 @@ export class OmPlayer extends LitElement {
       return;
     }
 
-    if (this.store.getCurrentTrack() || this.store.engine.getAudioElement()?.src) {
+    if (this.playGestureHandled) {
+      this.playGestureHandled = false;
       e.preventDefault();
+      return;
+    }
+
+    e.preventDefault();
+    if (this.loading) {
+      void this.mediaPlayPausePublic();
       return;
     }
 
@@ -702,12 +806,23 @@ export class OmPlayer extends LitElement {
     return this.trySyncPlayPause();
   }
 
+  private audioReadyForToggle(): boolean {
+    if (this.store.engine.hasPlayableSource()) return true;
+    const audio = this.store.engine.peekAudioElement();
+    return !!(
+      audio?.src &&
+      !audio.error &&
+      !audio.ended &&
+      audio.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
+    );
+  }
+
   private trySyncPlayPause(): boolean {
     if (this.store.isPlaying()) {
       this.store.toggleFromUserGesture();
       return true;
     }
-    if (this.store.getCurrentTrack() && this.store.engine.hasPlayableSource()) {
+    if (this.store.getCurrentTrack() && this.audioReadyForToggle()) {
       this.store.toggleFromUserGesture();
       return true;
     }
@@ -747,8 +862,374 @@ export class OmPlayer extends LitElement {
           aria-label=${this.repeatAriaLabel()}
           title=${this.repeatAriaLabel()}
         >${this.repeatIcon(this.store.repeat)}</button>
+        <button
+          class="btn btn--queue-toggle${this.queueExpanded ? ' is-active' : ''}"
+          @click=${() => this.toggleQueueExpanded()}
+          aria-label=${this.queueExpanded ? 'Свернуть очередь' : 'Развернуть очередь'}
+          aria-expanded=${this.queueExpanded ? 'true' : 'false'}
+          title="Очередь"
+        >${iconListMusic}</button>
       </div>
     `;
+  }
+
+  private toggleQueueExpanded(): void {
+    this.queueExpanded = !this.queueExpanded;
+    this.setBodyScrollLock(this.queueExpanded);
+    if (this.queueExpanded) {
+      this.setAttribute('queue-expanded', '');
+    } else {
+      this.removeAttribute('queue-expanded');
+    }
+    this.requestUpdate();
+  }
+
+  closeQueueExpanded(): void {
+    if (!this.queueExpanded) return;
+    this.clearQueueDrag();
+    this.queueExpanded = false;
+    this.setBodyScrollLock(false);
+    this.removeAttribute('queue-expanded');
+    this.requestUpdate();
+  }
+
+  private setBodyScrollLock(locked: boolean): void {
+    if (this.mode !== 'mini') return;
+    document.body.style.overflow = locked ? 'hidden' : '';
+  }
+
+  private onSheetPointerDown(e: PointerEvent): void {
+    if (e.button !== 0) return;
+    this.sheetDragging = true;
+    this.sheetDragStartY = e.clientY;
+    this.sheetDragOffset = 0;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+
+  private onSheetPointerMove(e: PointerEvent): void {
+    if (!this.sheetDragging) return;
+    const delta = e.clientY - this.sheetDragStartY;
+    this.sheetDragOffset = Math.max(0, delta);
+    const sheet = this.renderRoot.querySelector('.queue-sheet') as HTMLElement | null;
+    if (sheet) {
+      sheet.style.setProperty('--sheet-drag', `${this.sheetDragOffset}px`);
+    }
+  }
+
+  private onSheetPointerUp(e: PointerEvent): void {
+    if (!this.sheetDragging) return;
+    this.sheetDragging = false;
+    const sheet = this.renderRoot.querySelector('.queue-sheet') as HTMLElement | null;
+    if (sheet) sheet.style.removeProperty('--sheet-drag');
+    if (this.sheetDragOffset > 80) this.closeQueueExpanded();
+    this.sheetDragOffset = 0;
+    if ((e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId)) {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    }
+  }
+
+  private renderAlbumTrackList(): unknown {
+    const tracks = this.pageTracks;
+    return html`
+      <ol class="queue queue--scroll queue--album" role="list">
+        ${tracks.length === 0 && !this.loading
+          ? html`<li class="queue-empty">Треков пока нет</li>`
+          : tracks.map((t, i) => {
+              const isActive = t.slug === this.current?.slug;
+              const inQueue = this.store.hasInQueue(t.slug);
+              return html`
+                <li role="listitem" class="queue-item${isActive ? ' is-active' : ''}">
+                  <span class="queue-index" @pointerdown=${() => this.store.engine.unlockUserGesture()} @click=${() => this.playPageTrack(i)}>
+                    ${isActive && this.playing
+                      ? html`<span class="queue-playing">${renderVisualizer(true)}</span>`
+                      : (t.trackNumber ?? i + 1)}
+                  </span>
+                  <button type="button" class="queue-title-btn" @pointerdown=${() => this.store.engine.unlockUserGesture()} @click=${() => this.playPageTrack(i)}>
+                    <span class="queue-title-text">${t.title}</span>
+                  </button>
+                  <span class="queue-actions">
+                    <button
+                      type="button"
+                      class="btn btn--queue-add${inQueue ? ' is-added' : ''}"
+                      @click=${(e: Event) => {
+                        e.stopPropagation();
+                        if (inQueue) void this.removeTrackFromQueue(t.slug);
+                        else void this.addTrackToQueue(t, false);
+                      }}
+                      aria-label=${inQueue ? 'Убрать из очереди' : 'Добавить в очередь'}
+                      title=${inQueue ? 'Убрать из очереди' : 'В очередь'}
+                    >${inQueue ? iconCheck : iconPlus}</button>
+                    <button
+                      type="button"
+                      class="btn btn--queue-next"
+                      @click=${(e: Event) => {
+                        e.stopPropagation();
+                        void this.addTrackToQueue(t, true);
+                      }}
+                      aria-label="Играть следующим"
+                      title="Следующим"
+                    >${iconQueueNext}</button>
+                    ${this.renderHeart(t.slug)}
+                    <span class="queue-duration">${formatMs(t.durationMs)}</span>
+                  </span>
+                </li>
+              `;
+            })}
+      </ol>
+    `;
+  }
+
+  private async addTrackToQueue(track: TrackSummary, next: boolean): Promise<void> {
+    if (!this.client) return;
+    try {
+      const detail = track.stream?.url
+        ? withAbsoluteStream(this.apiBase, track)
+        : withAbsoluteStream(this.apiBase, await this.client.getTrack(track.slug));
+      const wasInQueue = this.store.hasInQueue(track.slug);
+      const ok = next ? this.store.playNext(detail) : this.store.addToQueue(detail);
+      if (ok) {
+        this.visible = true;
+        if (next) {
+          this.showQueueNotice(wasInQueue ? 'Перемещено вверх' : 'Будет следующим');
+        } else {
+          this.showQueueNotice('Добавлено в очередь');
+        }
+        getGlobalPlayerEl()?.showPublic?.();
+      }
+    } catch {
+      this.showQueueNotice('Не удалось добавить');
+    }
+  }
+
+  private removeTrackFromQueue(slug: string): void {
+    if (this.store.removeBySlug(slug)) {
+      this.showQueueNotice('Убрано из очереди');
+      this.requestUpdate();
+    }
+  }
+
+  private clearQueueDrag(): void {
+    this.queueDragCleanup?.();
+    this.queueDragCleanup = null;
+    this.queueDragPointerId = null;
+    this.queueDragFrom = null;
+    this.queueDragOver = null;
+  }
+
+  private getQueueDragPreview(): number[] {
+    const indices = this.queue.map((_, i) => i);
+    const from = this.queueDragFrom;
+    const to = this.queueDragOver;
+    if (from === null || to === null || from === to) return indices;
+
+    const result = [...indices];
+    const [moved] = result.splice(from, 1);
+    const insertAt = Math.max(0, Math.min(to, result.length));
+    result.splice(insertAt, 0, moved);
+    return result;
+  }
+
+  private getQueueListIndices(upcomingOnly = false): number[] {
+    const order = this.queueDragFrom !== null ? this.getQueueDragPreview() : this.queue.map((_, i) => i);
+    if (!upcomingOnly) return order;
+    return order.filter((i) => i >= this.store.queueIndex);
+  }
+
+  private resolveQueueDragIndex(clientY: number): number | null {
+    const rows = this.renderRoot.querySelectorAll<HTMLElement>('[data-queue-index]');
+    for (const row of rows) {
+      const rect = row.getBoundingClientRect();
+      const mid = rect.top + rect.height / 2;
+      if (clientY < mid) {
+        return Number(row.dataset.queueIndex);
+      }
+    }
+    if (rows.length > 0) {
+      return rows.length;
+    }
+    return null;
+  }
+
+  private onQueueDragStart(e: PointerEvent, index: number): void {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    this.clearQueueDrag();
+    this.queueDragFrom = index;
+    this.queueDragOver = index;
+    this.queueDragPointerId = e.pointerId;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+
+    const onMove = (ev: PointerEvent): void => {
+      if (ev.pointerId !== this.queueDragPointerId) return;
+      const over = this.resolveQueueDragIndex(ev.clientY);
+      if (over === null) return;
+      const changed = over !== this.queueDragOver;
+      this.queueDragOver = over;
+      if (changed && typeof navigator.vibrate === 'function') {
+        navigator.vibrate(10);
+      }
+      this.requestUpdate();
+    };
+
+    const onUp = (ev: PointerEvent): void => {
+      if (ev.pointerId !== this.queueDragPointerId) return;
+      const from = this.queueDragFrom;
+      const to = this.queueDragOver;
+      this.clearQueueDrag();
+      if (from !== null && to !== null && from !== to) {
+        this.store.moveQueueItem(from, to);
+      }
+      this.requestUpdate();
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    this.queueDragCleanup = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+  }
+
+  private renderQueueList(options: { removable?: boolean; draggable?: boolean; upcomingOnly?: boolean } = {}): unknown {
+    const { removable = false, draggable = false, upcomingOnly = false } = options;
+    const indices = this.getQueueListIndices(upcomingOnly);
+    const isDragging = this.queueDragFrom !== null;
+
+    return html`
+      <ol class="queue queue--scroll${isDragging ? ' queue--is-dragging' : ''}" role="list">
+        ${indices.length === 0 && !this.loading
+          ? html`<li class="queue-empty">${upcomingOnly ? 'Следующих треков нет' : 'Очередь пуста'}</li>`
+          : indices.map((i, pos) => {
+              const t = this.queue[i];
+              if (!t) return nothing;
+              const isCurrent = i === this.store.queueIndex;
+              const dropTarget = isDragging && this.queueDragOver === i && this.queueDragFrom !== i;
+              const orderLabel = upcomingOnly
+                ? i - this.store.queueIndex + 1
+                : (t.trackNumber ?? i + 1);
+              return html`
+              <li
+                role="listitem"
+                data-queue-index=${i}
+                class="queue-item${draggable ? ' queue-item--draggable' : ''}${isCurrent ? ' is-active' : ''}${this.queueDragFrom === i ? ' is-dragging' : ''}${dropTarget ? ' is-drag-over' : ''}"
+              >
+                ${draggable
+                  ? html`
+                      <button
+                        type="button"
+                        class="btn queue-drag-handle"
+                        aria-label="Переместить"
+                        @pointerdown=${(e: PointerEvent) => this.onQueueDragStart(e, i)}
+                      >${iconGrip}</button>
+                    `
+                  : nothing}
+                <span class="queue-index" @click=${() => this.playQueueIndex(i)}>
+                  ${isCurrent && this.playing
+                    ? html`<span class="queue-playing">${renderVisualizer(true)}</span>`
+                    : orderLabel}
+                </span>
+                <span class="queue-title-text" @click=${() => this.playQueueIndex(i)}>${t.title}</span>
+                <span class="queue-actions">
+                  ${this.renderHeart(t.slug)}
+                  ${removable && this.queue.length > 1
+                    ? html`
+                        <button
+                          type="button"
+                          class="btn btn--queue-remove"
+                          @click=${(e: Event) => { e.stopPropagation(); this.store.removeAt(i); }}
+                          aria-label="Убрать из очереди"
+                          title="Убрать"
+                        >${iconTrash}</button>
+                      `
+                    : nothing}
+                  <span class="queue-duration">${formatMs(t.durationMs)}</span>
+                </span>
+              </li>
+            `;
+            })}
+      </ol>
+    `;
+  }
+
+  private renderQueueSheet(): unknown {
+    if (!this.queueExpanded || this.mode !== 'mini') return nothing;
+
+    const duration = this.current?.durationMs ?? 0;
+    const queueCount = this.queue.length;
+
+    return html`
+      <div
+        class="queue-backdrop"
+        @click=${() => this.closeQueueExpanded()}
+        aria-hidden="true"
+      ></div>
+      <div
+        class="queue-sheet"
+        role="dialog"
+        aria-label="Очередь воспроизведения"
+        aria-modal="true"
+      >
+        <div
+          class="queue-sheet__handle"
+          @pointerdown=${this.onSheetPointerDown}
+          @pointermove=${this.onSheetPointerMove}
+          @pointerup=${this.onSheetPointerUp}
+          @pointercancel=${this.onSheetPointerUp}
+        >
+          <span class="queue-sheet__grab" aria-hidden="true"></span>
+        </div>
+        <button
+          type="button"
+          class="btn btn--sheet-close"
+          @click=${() => this.closeQueueExpanded()}
+          aria-label="Закрыть"
+        >${iconChevronDown}</button>
+
+        ${this.queueNotice
+          ? html`<div class="queue-toast" role="status">${this.queueNotice}</div>`
+          : nothing}
+
+        <div class="queue-sheet__body">
+          <div class="queue-sheet__now">
+            <div class="queue-sheet__cover-wrap">
+              ${this.renderCover('lg')}
+              <div class="cover-viz">${renderVisualizer(this.playing)}</div>
+              <div class="cover-heart">${this.renderHeart(this.current?.slug)}</div>
+            </div>
+            <div class="meta meta--sheet">
+              <div class="title">${this.displayTitle}</div>
+              <div class="artist">${this.displayArtist}</div>
+            </div>
+            <div class="controls controls--center">
+              <button class="btn${this.store.shuffle ? ' is-active' : ''}" @click=${() => this.store.toggleShuffle()} aria-label="Случайный порядок">${iconShuffle}</button>
+              <button class="btn" @click=${() => this.store.prev()} aria-label="Предыдущий">${iconPrev}</button>
+              ${this.renderPlayButton('lg')}
+              <button class="btn" @click=${() => this.store.next()} aria-label="Следующий">${iconNext}</button>
+              <button class="btn${this.store.repeat !== 'off' ? ' is-active' : ''}" @click=${() => this.store.cycleRepeat()} aria-label=${this.repeatAriaLabel()}>${this.repeatIcon(this.store.repeat)}</button>
+            </div>
+            ${this.current ? this.renderProgress(duration) : nothing}
+          </div>
+
+          <div class="queue-sheet__list">
+            <div class="queue-sheet__list-header">
+              <h2 class="queue-title">Очередь</h2>
+              ${queueCount > 0
+                ? html`<span class="queue-count">${pluralTracks(queueCount)}</span>`
+                : nothing}
+            </div>
+            ${this.renderQueueList({ removable: true, draggable: true })}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  private onMiniMetaClick(): void {
+    if (this.current) this.toggleQueueExpanded();
   }
 
   render() {
@@ -815,30 +1296,12 @@ export class OmPlayer extends LitElement {
               </div>
               ${this.current ? this.renderProgress(duration) : nothing}
               ${idle && this.album
-                ? html`<button class="btn-start-album" @click=${() => this.loadQueue(true)}>Слушать альбом</button>`
+                ? html`<button class="btn-start-album" @pointerdown=${() => this.store.engine.unlockUserGesture()} @click=${() => this.loadQueue(true)}>Слушать альбом</button>`
                 : nothing}
             </aside>
             <div class="full-tracks">
               <h2 class="queue-title">Треки</h2>
-              <ol class="queue queue--scroll" role="list">
-                ${this.queue.length === 0 && !this.loading
-                  ? html`<li class="queue-empty">Треков пока нет</li>`
-                  : this.queue.map(
-                      (t, i) => html`
-                        <li
-                          role="listitem"
-                          class="queue-item${i === this.store.queueIndex ? ' is-active' : ''}"
-                        >
-                          <span class="queue-index" @click=${() => this.playQueueIndex(i)}>${i === this.store.queueIndex && this.playing ? html`<span class="queue-playing">${renderVisualizer(true)}</span>` : (t.trackNumber ?? i + 1)}</span>
-                          <span class="queue-title-text" @click=${() => this.playQueueIndex(i)}>${t.title}</span>
-                          <span class="queue-actions">
-                            ${this.renderHeart(t.slug)}
-                            <span class="queue-duration">${formatMs(t.durationMs)}</span>
-                          </span>
-                        </li>
-                      `,
-                    )}
-              </ol>
+              ${this.renderAlbumTrackList()}
             </div>
           </div>
         </div>
@@ -846,22 +1309,33 @@ export class OmPlayer extends LitElement {
     }
 
     const duration = this.current?.durationMs ?? 0;
+    if (this.queueExpanded) {
+      return html`${this.renderQueueSheet()}`;
+    }
+
     return html`
       <div class="player player--mini" role="region" aria-label="Мини-плеер">
         <div class="mini-row">
-          ${this.renderCover('sm')}
-          <div class="meta">
-            <div class="title">${this.displayTitle}</div>
-            <div class="artist">${this.displayArtist}</div>
-          </div>
+          <button type="button" class="mini-cover-btn" @click=${() => this.onMiniMetaClick()} aria-label="Развернуть плеер">
+            ${this.renderCover('sm')}
+          </button>
+          <button type="button" class="mini-meta-btn" @click=${() => this.onMiniMetaClick()} aria-label="Развернуть плеер">
+            <div class="meta">
+              <div class="title">${this.displayTitle}</div>
+              <div class="artist">${this.displayArtist}</div>
+            </div>
+          </button>
+          ${this.current ? this.renderProgress(duration, true, true) : nothing}
           <div class="mini-viz">${renderVisualizer(this.playing)}</div>
-          <div class="controls">
-            ${this.renderHeart(this.current?.slug)}
-            <button class="btn" @click=${() => this.store.prev()} aria-label="Предыдущий">${iconPrev}</button>
-            ${this.renderPlayButton('md')}
-            <button class="btn" @click=${() => this.store.next()} aria-label="Следующий">${iconNext}</button>
+          <div class="mini-toolbar">
+            <div class="controls">
+              ${this.renderHeart(this.current?.slug)}
+              <button class="btn" @click=${() => this.store.prev()} aria-label="Предыдущий">${iconPrev}</button>
+              ${this.renderPlayButton('md')}
+              <button class="btn" @click=${() => this.store.next()} aria-label="Следующий">${iconNext}</button>
+            </div>
+            ${this.renderMiniOptions()}
           </div>
-          ${this.renderMiniOptions()}
           <label class="volume-wrap" aria-label="Громкость">
             ${iconVolume}
             <input
@@ -874,17 +1348,31 @@ export class OmPlayer extends LitElement {
             />
           </label>
         </div>
-        ${this.renderProgress(duration, true)}
       </div>
     `;
   }
 
-  async playAlbumPublic(slug: string): Promise<void> {
+  unlockPlaybackPublic(): void {
+    this.store.engine.unlockUserGesture();
+  }
+
+  playAlbumPublic(slug: string, pageTracks?: TrackSummary[]): void {
+    this.store.engine.unlockUserGesture();
     this.visible = true;
-    await this.playAlbum(slug);
+
+    if (pageTracks?.length) {
+      const tracks = pageTracks.map((t) => withAbsoluteStream(this.apiBase, t));
+      if (tracks.some((t) => t.stream?.url)) {
+        this.store.setQueue(tracks, 0, 0, true, true);
+        return;
+      }
+    }
+
+    void this.playAlbum(slug);
   }
 
   async playPlaylistPublic(slug: string): Promise<void> {
+    this.store.engine.unlockUserGesture();
     this.visible = true;
     await this.playPlaylist(slug);
   }
@@ -924,27 +1412,41 @@ export class OmPlayer extends LitElement {
     }
   }
 
+  private hasHealthySession(): boolean {
+    const saved = this.store.loadSaved();
+    const track = this.store.getCurrentTrack();
+    const audio = this.store.engine.peekAudioElement();
+    if (!saved?.trackSlug || !track || track.slug !== saved.trackSlug) {
+      return false;
+    }
+    if (!audio?.src || audio.ended || audio.error) {
+      return false;
+    }
+    return this.store.engine.hasPlayableSource() || audio.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
+  }
+
   async restoreSessionPublic(): Promise<void> {
     if (this.restoreInFlight) {
       await this.restoreInFlight;
       return;
     }
 
-    const audio = this.store.engine.getAudioElement();
-    if (audio?.src && !audio.ended) {
+    if (this.store.hasActiveSession()) {
       this.visible = true;
       return;
     }
 
-    if (
-      this.store.engine.hasActivePlayback() ||
-      (this.store.engine.getCurrentTrack() && audio?.src)
-    ) {
+    const saved = this.store.loadSaved();
+    if (this.hasHealthySession()) {
       this.visible = true;
+      await this.store.waitUntilReady();
+      if (!this.store.isNavigating()) {
+        this.store.syncSavedPlaybackPosition();
+      }
       return;
     }
-    const saved = this.store.loadSaved();
     if (!saved?.trackSlug) return;
+    const trackSlug = saved.trackSlug;
 
     this.visible = true;
     this.loading = true;
@@ -955,14 +1457,14 @@ export class OmPlayer extends LitElement {
         if (saved.albumSlug && saved.queueSlugs?.length > 1) {
           await this.restoreQueuePublic(
             saved.albumSlug,
-            saved.trackSlug,
+            trackSlug,
             saved.queueSlugs,
             saved.queueIndex,
             saved.positionMs,
             autoplay,
           );
         } else {
-          await this.loadTrackPublic(saved.trackSlug, saved.positionMs, autoplay);
+          await this.loadTrackPublic(trackSlug, saved.positionMs, autoplay);
         }
       } finally {
         if (this.isConnected) this.loading = false;
@@ -987,13 +1489,25 @@ export class OmPlayer extends LitElement {
   }
 
   async mediaPlayPausePublic(): Promise<void> {
+    if (this.restoreInFlight) {
+      await this.restoreInFlight;
+    }
+    this.store.engine.unlockUserGesture();
     if (this.trySyncPlayPause()) return;
 
     await this.restoreSessionPublic();
     if (!this.store.getCurrentTrack()) return;
     await this.store.waitUntilReady();
     this.visible = true;
-    this.store.toggleFromUserGesture();
+
+    const toggled = this.store.toggleFromUserGesture();
+    if (toggled !== null) return;
+
+    const track = this.store.getCurrentTrack();
+    if (!track) return;
+    const saved = this.store.loadSaved();
+    const positionMs = this.store.getPositionMs() || saved?.positionMs || 0;
+    await this.loadTrackPublic(track.slug, positionMs, true);
   }
 
   async mediaStopPublic(): Promise<void> {
@@ -1006,6 +1520,55 @@ export class OmPlayer extends LitElement {
 
   showPublic(): void {
     this.visible = true;
+  }
+
+  hasLiveSessionPublic(): boolean {
+    return this.store.hasActiveSession();
+  }
+
+  completeNavigationPublic(): void {
+    this.store.completeNavigation();
+  }
+
+  toggleQueueExpandedPublic(): void {
+    this.toggleQueueExpanded();
+  }
+
+  closeQueueExpandedPublic(): void {
+    this.closeQueueExpanded();
+  }
+
+  async addToQueuePublic(slug: string): Promise<boolean> {
+    if (!this.client) return false;
+    try {
+      const detail = withAbsoluteStream(this.apiBase, await this.client.getTrack(slug));
+      const added = this.store.addToQueue(detail);
+      if (added) {
+        this.visible = true;
+        this.showQueueNotice('Добавлено в очередь');
+        this.dispatchEvent(new CustomEvent('om:queue-add', { bubbles: true, composed: true, detail: { track: detail } }));
+      }
+      return added;
+    } catch {
+      return false;
+    }
+  }
+
+  async addToQueueNextPublic(slug: string): Promise<boolean> {
+    if (!this.client) return false;
+    try {
+      const detail = withAbsoluteStream(this.apiBase, await this.client.getTrack(slug));
+      const wasInQueue = this.store.hasInQueue(slug);
+      const added = this.store.playNext(detail);
+      if (added) {
+        this.visible = true;
+        this.showQueueNotice(wasInQueue ? 'Перемещено вверх' : 'Будет следующим');
+        this.dispatchEvent(new CustomEvent('om:queue-add', { bubbles: true, composed: true, detail: { track: detail, next: true } }));
+      }
+      return added;
+    } catch {
+      return false;
+    }
   }
 }
 

@@ -21,6 +21,7 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
 #[AdminDashboard(routePath: '/admin', routeName: 'admin')]
 class DashboardController extends AbstractDashboardController
@@ -28,6 +29,7 @@ class DashboardController extends AbstractDashboardController
     public function __construct(
         private readonly TrackUploadHandler $trackUploadHandler,
         private readonly UploadFileValidator $uploadFileValidator,
+        private readonly CsrfTokenManagerInterface $csrfTokenManager,
     ) {
     }
 
@@ -267,6 +269,7 @@ class DashboardController extends AbstractDashboardController
     {
         return Dashboard::new()
             ->setTitle('OmPlayer')
+            ->setFaviconPath('favicon.svg')
             ->setLocales([Locale::new('ru', 'Русский')])
             ->setDefaultColorScheme(ColorScheme::DARK)
             ->renderContentMaximized();
@@ -274,6 +277,12 @@ class DashboardController extends AbstractDashboardController
 
     public function configureAssets(): Assets
     {
+        $sortCsrf = htmlspecialchars(
+            $this->csrfTokenManager->getToken(AdminCollectionSortController::CSRF_TOKEN_ID)->getValue(),
+            ENT_QUOTES | ENT_SUBSTITUTE,
+            'UTF-8',
+        );
+
         return Assets::new()
             ->addCssFile('css/admin.css')
             ->addCssFile('css/admin-upload.css')
@@ -282,6 +291,7 @@ class DashboardController extends AbstractDashboardController
                 '<link rel="preconnect" href="https://fonts.googleapis.com">'
                 . '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
                 . '<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">'
+                . '<meta name="om-admin-sort-csrf" content="'.$sortCsrf.'">'
             );
     }
 

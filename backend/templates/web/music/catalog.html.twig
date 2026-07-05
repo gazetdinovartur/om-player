@@ -2,20 +2,67 @@
 
 {% block title %}Альбомы — OmPlayer{% endblock %}
 
+{% block head %}
+    <meta name="turbo-cache-control" content="no-cache">
+{% endblock %}
+
 {% block body %}
 <header class="catalog-header">
     <div>
         <h1 class="catalog-header__title">Альбомы</h1>
-        <p class="catalog-header__lead">Все релизы — можно искать по названию трека или альбома</p>
+        <p class="catalog-header__lead">Все релизы — можно искать по названию трека, альбома или артиста</p>
     </div>
     <div class="catalog-header__search">
-        <form class="search-form" action="{{ path('web_music_catalog') }}" method="get">
-            <input type="search" name="q" value="{{ q|default('') }}" placeholder="Найти альбом или трек…" aria-label="Поиск">
+        <form class="search-form" action="{{ path('web_music_catalog') }}" method="get" data-turbo-action="advance" role="search">
+            <input
+                type="search"
+                name="q"
+                value="{{ q|default('') }}"
+                placeholder="Найти альбом, трек или артиста…"
+                aria-label="Поиск"
+                autocomplete="off"
+                enterkeyhint="search"
+            >
+            <button type="submit" class="search-form__submit">Искать</button>
         </form>
     </div>
 </header>
 
+{% if q and tracks|length > 0 %}
+<section class="section search-results-section">
+    <h2 class="section__title">Треки</h2>
+    <ol class="favorites-list search-tracks-list" role="list">
+        {% for track in tracks %}
+            {% set durationSec = (track.durationMs / 1000)|round(0, 'floor') %}
+            <li class="favorites-item search-track-item" role="listitem" data-om-track="{{ track.slug }}">
+                <span class="favorites-item__index">{{ loop.index }}</span>
+                <button type="button" class="favorites-item__play" data-om-play-track="{{ track.slug }}" aria-label="Слушать {{ track.title }}">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.14v13.72L19 12 8 5.14z"/></svg>
+                </button>
+                <div class="favorites-item__cover">
+                    {% if track.coverThumbUrl or track.coverUrl %}
+                        <img src="{{ track.coverThumbUrl|default(track.coverUrl) }}" alt="" loading="lazy">
+                    {% else %}
+                        <div class="album-card__placeholder"></div>
+                    {% endif %}
+                </div>
+                <div class="favorites-item__meta">
+                    <button type="button" class="favorites-item__title" data-om-play-track="{{ track.slug }}">{{ track.title }}</button>
+                    <p class="favorites-item__artist">{{ track.artistName }}{% if track.albumTitle %} · {{ track.albumTitle }}{% endif %}</p>
+                </div>
+                {% if durationSec > 0 %}
+                    <span class="favorites-item__duration">{{ (durationSec / 60)|round(0, 'floor') }}:{{ '%02d'|format(durationSec % 60) }}</span>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ol>
+</section>
+{% endif %}
+
 <section class="section">
+    {% if q and (tracks|length > 0 or albums|length > 0) %}
+        <h2 class="section__title">Альбомы</h2>
+    {% endif %}
     <div class="album-grid">
         {% for album in albums %}
             <a class="album-card" href="{{ path('web_music_album', {slug: album.slug}) }}" data-om-album="{{ album.slug }}">
@@ -38,11 +85,22 @@
                 </div>
             </a>
         {% else %}
-            <div class="empty-state">
-                <p class="empty-state__title">Пока нет альбомов</p>
-                <p>Загрузите трек через admin — альбом появится здесь автоматически.</p>
-            </div>
+            {% if not (q and tracks|length > 0) %}
+                <div class="empty-state">
+                    {% if q %}
+                        <p class="empty-state__title">Ничего не найдено</p>
+                        <p>Попробуйте другое название альбома, трека или артиста.</p>
+                    {% else %}
+                        <p class="empty-state__title">Пока нет альбомов</p>
+                        <p>Загрузите трек через admin — альбом появится здесь автоматически.</p>
+                    {% endif %}
+                </div>
+            {% endif %}
         {% endfor %}
     </div>
 </section>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ asset('js/catalog-search.js') }}" defer data-turbo-eval="false"></script>
 {% endblock %}

@@ -30,6 +30,7 @@ services:
       DATABASE_URL: mysql://${MYSQL_USER:-om}:${MYSQL_PASSWORD:-om}@mysql:3306/${MYSQL_DATABASE:-om_player}?serverVersion=8.4&charset=utf8mb4
     volumes:
       - ./backend:/app
+      - ./openapi:/app/openapi:ro
       - app_vendor:/app/vendor
     depends_on:
       mysql:

@@ -4,6 +4,7 @@
 # Player
 /player/node_modules/
 .idea
+.cursor
 # Backend (see backend/.gitignore for vendor, var)
 /backend/vendor/
 /backend/var/

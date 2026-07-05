@@ -513,6 +513,30 @@
     overflow: visible;
 }
 
+.ea-new-Artist .content-body,
+.ea-edit-Artist .content-body,
+.ea-new-Artist .form-panel,
+.ea-edit-Artist .form-panel {
+    overflow: visible;
+}
+
+.ea-new-Artist .field-text .input-group,
+.ea-edit-Artist .field-text .input-group {
+    width: 100%;
+    max-width: 100%;
+}
+
+.ea-new-Artist .field-text .input-group .form-control,
+.ea-edit-Artist .field-text .input-group .form-control {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.ea-new-Artist .field-text .input-group .btn,
+.ea-edit-Artist .field-text .input-group .btn {
+    flex-shrink: 0;
+}
+
 /* CRUD forms — единая ширина полей */
 .ea-new-Album .content-body,
 .ea-edit-Album .content-body,
@@ -560,6 +584,56 @@
     margin-bottom: 1rem;
 }
 
+.ea-new-Album .form-group > label,
+.ea-edit-Album .form-group > label,
+.ea-new-Playlist .form-group > label,
+.ea-edit-Playlist .form-group > label,
+.ea-new-Artist .form-group > label,
+.ea-edit-Artist .form-group > label,
+.ea-new-Track .form-group > label,
+.ea-edit-Track .form-group > label,
+.ea-new-Album .form-group legend.col-form-label,
+.ea-edit-Album .form-group legend.col-form-label,
+.ea-new-Playlist .form-group legend.col-form-label,
+.ea-edit-Playlist .form-group legend.col-form-label,
+.ea-new-Artist .form-group legend.col-form-label,
+.ea-edit-Artist .form-group legend.col-form-label,
+.ea-new-Track .form-group legend.col-form-label,
+.ea-edit-Track .form-group legend.col-form-label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+}
+
+.ea-new-Album form [class*='col-md-'],
+.ea-edit-Album form [class*='col-md-'],
+.ea-new-Playlist form [class*='col-md-'],
+.ea-edit-Playlist form [class*='col-md-'],
+.ea-new-Artist form [class*='col-md-'],
+.ea-edit-Artist form [class*='col-md-'],
+.ea-new-Track form [class*='col-md-'],
+.ea-edit-Track form [class*='col-md-'] {
+    margin-bottom: 0.75rem;
+}
+
+.ea-new-Album .field-form_fieldset,
+.ea-edit-Album .field-form_fieldset,
+.ea-new-Playlist .field-form_fieldset,
+.ea-edit-Playlist .field-form_fieldset {
+    margin-top: 1.5rem;
+    padding-top: 0.25rem;
+}
+
+.ea-new-Album .field-form_fieldset > legend,
+.ea-edit-Album .field-form_fieldset > legend,
+.ea-new-Playlist .field-form_fieldset > legend,
+.ea-edit-Playlist .field-form_fieldset > legend {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin-bottom: 0.75rem;
+}
+
 /* Cover upload */
 .om-cover-upload-input {
     max-width: 100%;
@@ -573,37 +647,121 @@
 
 /* Sortable collections */
 .field-collection-sortable .om-sort-order-input,
-.field-collection-sortable .form-group:has(.om-sort-order-input) {
+.field-collection-sortable .form-group:has(.om-sort-order-input),
+.field-collection-sortable .om-entity-id-input,
+.field-collection-sortable .form-group:has(.om-entity-id-input) {
     display: none !important;
+}
+
+.field-collection-sortable.om-sortable--saving .om-drag-handle {
+    opacity: 0.45;
+    cursor: wait;
+}
+
+.field-collection-sortable.om-sortable--saved {
+    box-shadow: inset 0 0 0 1px rgba(74, 124, 89, 0.45);
+    border-radius: 0.5rem;
+    transition: box-shadow 0.2s ease;
+}
+
+.om-sort-toast {
+    position: fixed;
+    right: 1.25rem;
+    bottom: 1.25rem;
+    z-index: 12000;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #f5f5f5;
+    background: #2a2a2e;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.om-sort-toast--success {
+    background: #2f5f3f;
+}
+
+.om-sort-toast--error {
+    background: #6b3030;
+}
+
+.field-collection-sortable--album-tracks .accordion-collapse,
+.field-collection-sortable--album-tracks .accordion-button::after,
+.field-collection-sortable--album-tracks .form-collection-item-collapse-marker {
+    display: none !important;
+}
+
+.field-collection-sortable--album-tracks .accordion-button {
+    cursor: default;
+    pointer-events: none;
+    padding-left: 0;
+}
+
+.field-collection-sortable--album-tracks .om-drag-handle {
+    pointer-events: auto;
+    cursor: grab;
+}
+
+.field-collection-sortable .om-drag-handle {
+    pointer-events: auto;
+    cursor: grab;
 }
 
 .om-sortable-list .accordion-item,
 .om-sortable-list .field-collection-item {
-    transition: box-shadow 0.15s ease, opacity 0.15s ease;
+    transition: box-shadow 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
 }
 
 .om-sortable-item--dragging {
-    opacity: 0.55;
+    opacity: 0.72;
+    transform: scale(0.995);
+    z-index: 2;
 }
 
 .om-sortable-item--over {
     box-shadow: inset 0 0 0 2px var(--om-accent);
 }
 
+.om-sort-position {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5rem;
+    height: 1.5rem;
+    margin-right: 0.5rem;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    background: var(--om-accent-soft);
+    color: var(--om-accent);
+    font-size: 0.75rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+}
+
 .om-drag-handle {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1.75rem;
-    height: 1.75rem;
-    margin-right: 0.5rem;
+    width: 2rem;
+    height: 2rem;
+    margin-right: 0.25rem;
+    padding: 0;
+    border: 0;
     border-radius: 8px;
+    background: transparent;
     color: var(--om-text-muted);
     cursor: grab;
     user-select: none;
-    letter-spacing: -0.15em;
-    font-size: 0.875rem;
     flex-shrink: 0;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.om-drag-handle:hover {
+    background: var(--om-accent-soft);
+    color: var(--om-accent);
 }
 
 .om-drag-handle:active {
@@ -614,10 +772,22 @@
 .field-collection-sortable .accordion-header {
     display: flex;
     align-items: center;
+    gap: 0.25rem;
 }
 
 .field-collection-sortable .accordion-button {
     flex: 1;
+    min-width: 0;
+    pointer-events: none;
+}
+
+.field-collection-sortable .accordion-item .field-collection-delete-button,
+.field-collection-sortable .field-collection-delete-button {
+    pointer-events: auto;
+}
+
+.field-collection-sortable .field-collection-add-button {
+    margin-top: 0.75rem;
 }
 
 /* Track CRUD forms */
@@ -685,4 +855,38 @@
 .ea-index-Track .datagrid td,
 .ea-index-Track .datagrid th {
     vertical-align: middle;
+}
+
+.track-index-sort-hint {
+    margin: 0 0 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
+    background: var(--om-accent-soft);
+    color: var(--om-text-secondary);
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+.track-index-sort-hint__grip {
+    display: inline-block;
+    padding: 0 0.2rem;
+    font-weight: 700;
+    color: var(--om-accent);
+}
+
+.om-track-sort-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-right: 0.35rem;
+    vertical-align: middle;
+}
+
+.om-track-sortable-body tr.om-sortable-item--dragging {
+    opacity: 0.72;
+}
+
+.om-track-sortable-body.om-sortable--saving {
+    opacity: 0.72;
+    pointer-events: none;
 }

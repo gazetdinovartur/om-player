@@ -6,6 +6,7 @@ namespace App\Controller\Web;
 
 use App\Api\TrackApiSerializer;
 use App\Repository\AlbumRepository;
+use App\Repository\TrackRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -18,15 +19,22 @@ final class MusicController extends AbstractController
     }
 
     #[Route('/music', name: 'web_music_catalog')]
-    public function catalog(AlbumRepository $albumRepository, Request $request): Response
-    {
+    public function catalog(
+        AlbumRepository $albumRepository,
+        TrackRepository $trackRepository,
+        Request $request,
+    ): Response {
         $q = trim((string) $request->query->get('q', ''));
         $albums = $q !== ''
             ? $albumRepository->searchPublished($q)
             : $albumRepository->findPublishedSummaries();
+        $tracks = $q !== ''
+            ? array_map(fn ($track) => $this->serializer->summary($track), $trackRepository->searchPublished($q))
+            : [];
 
         return $this->render('web/music/catalog.html.twig', [
             'albums' => $albums,
+            'tracks' => $tracks,
             'q' => $q,
         ]);
     }
@@ -42,7 +50,7 @@ final class MusicController extends AbstractController
         $tracks = [];
         foreach ($album->getTracks() as $track) {
             if ($track->isPublished()) {
-                $tracks[] = $this->serializer->summary($track);
+                $tracks[] = $this->serializer->trackWithStream($track);
             }
         }
 
