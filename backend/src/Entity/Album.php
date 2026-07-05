@@ -228,6 +228,30 @@ class Album
         return $this;
     }
 
+    public function getPublishedTrackCount(): int
+    {
+        $count = 0;
+        foreach ($this->tracks as $track) {
+            if ($track->isPublished()) {
+                ++$count;
+            }
+        }
+
+        return $count;
+    }
+
+    public function getPublishedTotalDurationMs(): int
+    {
+        $total = 0;
+        foreach ($this->tracks as $track) {
+            if ($track->isPublished()) {
+                $total += $track->getDurationMs();
+            }
+        }
+
+        return $total;
+    }
+
     public function getTrackCount(): int
     {
         return $this->tracks->count();

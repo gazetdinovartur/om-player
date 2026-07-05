@@ -28,8 +28,19 @@
             <h1 class="album-hero__title">{{ album.title }}</h1>
             <p class="album-hero__artist"><span class="album-hero__copyright-mark" aria-hidden="true">©</span> {{ album.artist.name }}</p>
             <p class="album-hero__meta">
-                {% if album.releasedAt %}{{ album.releasedAt|release_date }}{% endif %}
-                · {{ album.tracks|length }} {{ album.tracks|length == 1 ? 'трек' : (album.tracks|length < 5 ? 'трека' : 'треков') }}
+                {%- set trackCount = album.publishedTrackCount -%}
+                {%- set durationMs = album.publishedTotalDurationMs -%}
+                {%- if album.releasedAt -%}
+                    <span class="album-hero__meta-item">{{ album.releasedAt|release_date }}</span>
+                {%- endif -%}
+                {%- if trackCount > 0 -%}
+                    {%- if album.releasedAt -%}<span class="album-hero__meta-sep" aria-hidden="true">·</span>{%- endif -%}
+                    <span class="album-hero__meta-item">{{ trackCount }} {{ trackCount == 1 ? 'трек' : (trackCount < 5 ? 'трека' : 'треков') }}</span>
+                {%- endif -%}
+                {%- if durationMs > 0 -%}
+                    <span class="album-hero__meta-sep" aria-hidden="true">·</span>
+                    <span class="album-hero__meta-item">{{ durationMs|duration_ms }}</span>
+                {%- endif -%}
             </p>
             {% if album.description %}
                 <div class="album-hero__description-block" data-album-description>
