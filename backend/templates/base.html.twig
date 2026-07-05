@@ -10,6 +10,23 @@
     <link rel="manifest" href="{{ asset('manifest.json') }}">
     <meta name="theme-color" content="#4a7c59">
     <title>{% block title %}OmPlayer{% endblock %}</title>
+    {% block meta %}
+        {% set canonical_url = app.request.schemeAndHttpHost ~ app.request.pathInfo %}
+        <link rel="canonical" href="{% block canonical %}{{ canonical_url }}{% endblock %}">
+        <meta name="description" content="{% block meta_description %}Цифровой дом в интернете: цифровые продукты с нуля — от идеи до запуска. OmPlayer — музыка, каталог, плеер и API под одним доменом.{% endblock %}">
+        <meta property="og:site_name" content="OmPlayer">
+        <meta property="og:url" content="{{ canonical_url }}">
+        <meta property="og:locale" content="ru_RU">
+        <meta property="og:title" content="{% block og_title %}{{ block('title') }}{% endblock %}">
+        <meta property="og:description" content="{% block og_description %}{{ block('meta_description') }}{% endblock %}">
+        <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+        {% block og_image %}{% endblock %}
+        {% include 'partials/meta_schema.html.twig' with {
+            page_title: block('title'),
+            page_description: block('meta_description'),
+            canonical_url: canonical_url,
+        } %}
+    {% endblock %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">

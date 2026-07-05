@@ -1,0 +1,36 @@
+{% set author_name = 'Артур Лун' %}
+{% set author_url = 'https://arturlun.ru' %}
+{% set author_tagline = 'Цифровой дом в интернете' %}
+{% set author_bio = 'Я создаю цифровые продукты с нуля — от идеи до запуска. Это своё место в сети: контент, сервис и опыт в одной платформе. OmPlayer — живой пример: музыка, каталог, плеер и API под одним доменом, без привязки к чужим площадкам. Так же проектирую и собираю продуктовые платформы для бизнеса и личных проектов — сайт, админка, интеграции, всё, что нужно людям в их цифровом доме.' %}
+{% set site_url = app.request.schemeAndHttpHost %}
+{% set page_url = canonical_url|default(site_url ~ app.request.pathInfo) %}
+{% set person = {
+    '@type': 'Person',
+    'name': author_name,
+    'url': author_url,
+    'jobTitle': 'Разработчик продуктовых платформ',
+    'description': author_tagline ~ ' ' ~ author_bio
+} %}
+
+<script type="application/ld+json">
+{{ {
+    '@context': 'https://schema.org',
+    '@graph': [
+        person,
+        {
+            '@type': 'WebSite',
+            'url': site_url,
+            'name': 'OmPlayer',
+            'description': 'Музыкальная платформа — каталог, непрерывный плеер и API под одним доменом.',
+            'author': person
+        },
+        {
+            '@type': 'WebPage',
+            'url': page_url,
+            'name': page_title,
+            'description': page_description,
+            'author': person
+        }
+    ]
+}|json_encode(constant('JSON_UNESCAPED_UNICODE') b-or constant('JSON_HEX_TAG'))|raw }}
+</script>

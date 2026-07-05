@@ -2,10 +2,10 @@
 
 {% block title %}{{ playlist.title }} — OmPlayer{% endblock %}
 
-{% block head %}
+{% block meta_description %}Плейлист «{{ playlist.title }}» — слушайте подборку треков в OmPlayer.{% endblock %}
+
+{% block og_image %}
     {% if playlist.coverPath %}
-        <meta property="og:title" content="{{ playlist.title }}">
-        <meta property="og:description" content="Плейлист OmPlayer">
         <meta property="og:image" content="{{ absolute_url(asset('media/' ~ playlist.coverPath)) }}">
     {% endif %}
 {% endblock %}

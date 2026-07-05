@@ -2,12 +2,13 @@
 
 {% block title %}{{ album.title }} — OmPlayer{% endblock %}
 
-{% block head %}
+{% block meta_description %}{{ album.artist.name }} — {{ album.type.label }}. Слушайте альбом «{{ album.title }}» в OmPlayer.{% endblock %}
+
+{% block og_type %}music.album{% endblock %}
+
+{% block og_image %}
     {% if album.coverPath %}
-        <meta property="og:title" content="{{ album.title }}">
-        <meta property="og:description" content="{{ album.artist.name }} — {{ album.type.label }}">
         <meta property="og:image" content="{{ absolute_url(asset('media/' ~ album.coverPath)) }}">
-        <meta property="og:type" content="music.album">
     {% endif %}
 {% endblock %}
 
