@@ -152,9 +152,17 @@ class Album
         return $this->releasedAt;
     }
 
-    public function setReleasedAt(?\DateTimeImmutable $releasedAt): static
+    public function setReleasedAt(?\DateTimeInterface $releasedAt): static
     {
-        $this->releasedAt = $releasedAt;
+        if ($releasedAt === null) {
+            $this->releasedAt = null;
+
+            return $this;
+        }
+
+        $this->releasedAt = $releasedAt instanceof \DateTimeImmutable
+            ? $releasedAt
+            : \DateTimeImmutable::createFromInterface($releasedAt);
 
         return $this;
     }

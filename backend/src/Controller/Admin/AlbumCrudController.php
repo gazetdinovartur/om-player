@@ -71,7 +71,9 @@ final class AlbumCrudController extends AbstractCrudController
             'Концертный' => AlbumType::LIVE,
             'Сборник' => AlbumType::COMPILATION,
         ])->setColumns(3);
-        yield DateField::new('releasedAt', 'Дата релиза')->setColumns(3);
+        yield DateField::new('releasedAt', 'Дата релиза')
+            ->setColumns(3)
+            ->setFormTypeOption('input', 'datetime_immutable');
         yield BooleanField::new('published', 'Опубликован')->setColumns(3);
         yield IntegerField::new('sortOrder', 'Порядок в каталоге')->setColumns(3);
         yield TextareaField::new('description', 'Описание')->hideOnIndex()->setColumns(12)->setNumOfRows(4);
