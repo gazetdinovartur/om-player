@@ -92,6 +92,12 @@ final class TrackUploadHandler
      */
     public function confirmBatchStagedUpload(array $items, array $defaults): array
     {
+        $sharedArtist = trim((string) ($defaults['artist'] ?? ''));
+        $sharedAlbum = trim((string) ($defaults['album'] ?? ''));
+        if ($sharedAlbum === '') {
+            throw new \InvalidArgumentException('Укажите название альбома — все треки пакета сохраняются в один альбом.');
+        }
+
         $tracks = [];
         foreach ($items as $item) {
             $token = (string) ($item['token'] ?? '');
@@ -100,14 +106,18 @@ final class TrackUploadHandler
             }
 
             $form = $defaults;
+            $form['artist'] = $sharedArtist;
+            $form['album'] = $sharedAlbum;
             foreach (['title', 'trackNumber', 'year'] as $field) {
                 if (array_key_exists($field, $item) && $item[$field] !== '' && $item[$field] !== null) {
                     $form[$field] = $item[$field];
                 }
             }
 
-            $tracks[] = $this->confirmStagedUpload($token, $form);
+            $tracks[] = $this->confirmStagedUpload($token, $form, flush: false);
         }
+
+        $this->em->flush();
 
         return $tracks;
     }
@@ -149,7 +159,7 @@ final class TrackUploadHandler
     /**
      * @param array{title?: string, artist?: string, album?: string, trackNumber?: string, year?: string, publish?: bool, publish_album?: bool} $form
      */
-    public function confirmStagedUpload(string $token, array $form): Track
+    public function confirmStagedUpload(string $token, array $form, bool $flush = true): Track
     {
         $staged = $this->resolveStagedFile($token);
         $metaJson = json_decode((string) file_get_contents($staged['json']), true, 512, JSON_THROW_ON_ERROR);
@@ -186,7 +196,9 @@ final class TrackUploadHandler
         }
 
         $this->em->persist($track);
-        $this->em->flush();
+        if ($flush) {
+            $this->em->flush();
+        }
         $this->cleanupStaging($token);
 
         return $track;

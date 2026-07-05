@@ -389,6 +389,12 @@
         e.preventDefault();
         hideAlerts();
 
+        if (!batchFields.album?.value.trim()) {
+            showError('Укажите название альбома — все треки сохраняются в один альбом.');
+            batchFields.album?.focus();
+            return;
+        }
+
         const items = collectBatchPayload();
         if (items.length === 0) {
             showError('Нет файлов для сохранения.');

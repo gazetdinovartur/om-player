@@ -110,10 +110,12 @@ final class AlbumFolderImporter
 
     public function purgeCatalog(): void
     {
+        $this->em->createQuery('DELETE FROM App\Entity\PlaybackEvent pe')->execute();
         $this->em->createQuery('DELETE FROM App\Entity\PlaylistItem pi')->execute();
         $this->em->createQuery('DELETE FROM App\Entity\Track t')->execute();
         $this->em->createQuery('DELETE FROM App\Entity\Album a')->execute();
         $this->em->createQuery('DELETE FROM App\Entity\Artist ar')->execute();
+        $this->em->createQuery('DELETE FROM App\Entity\Playlist p')->execute();
         $this->em->flush();
         $this->em->clear();
         $this->purgeMediaStorage();
