@@ -42,7 +42,8 @@
     const batchFields = {
         artist: root.querySelector('[data-batch-artist]'),
         album: root.querySelector('[data-batch-album]'),
-        year: root.querySelector('[data-batch-year]'),
+        albumType: root.querySelector('[data-batch-album-type]'),
+        releasedAt: root.querySelector('[data-batch-released-at]'),
         publish: root.querySelector('[data-batch-publish]'),
         publishAlbum: root.querySelector('[data-batch-publish-album]'),
     };
@@ -187,7 +188,9 @@
         const first = batchItems[0].preview;
         if (!batchFields.artist.value) batchFields.artist.value = first.artist || '';
         if (!batchFields.album.value) batchFields.album.value = first.album || '';
-        if (!batchFields.year.value) batchFields.year.value = first.year ?? '';
+        if (!batchFields.releasedAt.value && first.year) {
+            batchFields.releasedAt.value = `${first.year}-01-01`;
+        }
     }
 
     function fillBatch(items) {

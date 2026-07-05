@@ -186,7 +186,8 @@ class DashboardController extends AbstractDashboardController
             $defaults = [
                 'artist' => $request->request->get('artist'),
                 'album' => $request->request->get('album'),
-                'year' => $request->request->get('year'),
+                'released_at' => $request->request->get('released_at'),
+                'album_type' => $request->request->get('album_type'),
                 'publish' => $request->request->get('publish'),
                 'publish_album' => $request->request->get('publish_album'),
             ];

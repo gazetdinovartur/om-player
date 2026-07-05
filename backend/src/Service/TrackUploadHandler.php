@@ -7,6 +7,7 @@ namespace App\Service;
 use App\Entity\Album;
 use App\Entity\Artist;
 use App\Entity\Track;
+use App\Enum\AlbumType;
 use Doctrine\ORM\EntityManagerInterface;
 use League\Flysystem\FilesystemOperator;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -88,7 +89,7 @@ final class TrackUploadHandler
 
     /**
      * @param list<array{token: string, title?: mixed, trackNumber?: mixed, year?: mixed}> $items
-     * @param array{title?: mixed, artist?: mixed, album?: mixed, trackNumber?: mixed, year?: mixed, publish?: mixed, publish_album?: mixed} $defaults
+     * @param array{title?: mixed, artist?: mixed, album?: mixed, trackNumber?: mixed, year?: mixed, released_at?: mixed, album_type?: mixed, publish?: mixed, publish_album?: mixed} $defaults
      *
      * @return Track[]
      */
@@ -101,8 +102,9 @@ final class TrackUploadHandler
         }
 
         $artist = $this->catalogResolver->resolveArtist($sharedArtist !== '' ? $sharedArtist : null);
-        $year = isset($defaults['year']) && $defaults['year'] !== '' ? (int) $defaults['year'] : null;
-        $releasedAt = $year !== null ? new \DateTimeImmutable(sprintf('%04d-01-01', $year)) : null;
+        $releasedAt = $this->parseBatchReleasedAt($defaults);
+        $year = $releasedAt !== null ? (int) $releasedAt->format('Y') : null;
+        $albumType = $this->parseBatchAlbumType($defaults);
         $albumMeta = new ExtractedAudioMetadata(
             title: $sharedAlbum,
             artist: $sharedArtist !== '' ? $sharedArtist : null,
@@ -115,7 +117,10 @@ final class TrackUploadHandler
             embeddedCover: null,
             mimeType: 'audio/mpeg',
         );
-        $album = $this->catalogResolver->resolveAlbum($sharedAlbum, $artist, $albumMeta);
+        $album = $this->catalogResolver->resolveAlbum($sharedAlbum, $artist, $albumMeta, $albumType);
+        if ($album !== null && $releasedAt !== null) {
+            $album->setReleasedAt($releasedAt);
+        }
         $this->em->flush();
 
         $tokens = [];
@@ -399,6 +404,32 @@ final class TrackUploadHandler
         foreach (glob($this->stagingDir.'/'.$token.'.*') ?: [] as $path) {
             @unlink($path);
         }
+    }
+
+    /** @param array<string, mixed> $defaults */
+    private function parseBatchReleasedAt(array $defaults): ?\DateTimeImmutable
+    {
+        $raw = trim((string) ($defaults['released_at'] ?? ''));
+        if ($raw !== '') {
+            $date = \DateTimeImmutable::createFromFormat('Y-m-d', $raw);
+            if ($date instanceof \DateTimeImmutable) {
+                return $date;
+            }
+        }
+
+        if (isset($defaults['year']) && $defaults['year'] !== '') {
+            return new \DateTimeImmutable(sprintf('%04d-01-01', (int) $defaults['year']));
+        }
+
+        return null;
+    }
+
+    /** @param array<string, mixed> $defaults */
+    private function parseBatchAlbumType(array $defaults): ?AlbumType
+    {
+        $raw = trim((string) ($defaults['album_type'] ?? ''));
+
+        return $raw !== '' ? AlbumType::tryFrom($raw) : null;
     }
 
     private function resolveExtension(UploadedFile $file): string

@@ -46,8 +46,12 @@ final class CatalogResolver
         return $artist;
     }
 
-    public function resolveAlbum(?string $albumTitle, Artist $artist, ExtractedAudioMetadata $meta): ?Album
-    {
+    public function resolveAlbum(
+        ?string $albumTitle,
+        Artist $artist,
+        ExtractedAudioMetadata $meta,
+        ?AlbumType $type = null,
+    ): ?Album {
         if ($albumTitle === null || trim($albumTitle) === '') {
             return null;
         }
@@ -58,6 +62,9 @@ final class CatalogResolver
             if ($existing->getReleasedAt() === null && $meta->releasedAt !== null) {
                 $existing->setReleasedAt($meta->releasedAt);
             }
+            if ($type !== null) {
+                $existing->setType($type);
+            }
 
             return $existing;
         }
@@ -66,7 +73,7 @@ final class CatalogResolver
             ->setTitle($title)
             ->setSlug($this->uniqueAlbumSlug($title))
             ->setArtist($artist)
-            ->setType($this->suggestAlbumType($title, $meta))
+            ->setType($type ?? $this->suggestAlbumType($title, $meta))
             ->setReleasedAt($meta->releasedAt)
             ->setPublished(false);
 

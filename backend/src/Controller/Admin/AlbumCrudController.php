@@ -114,6 +114,7 @@ final class AlbumCrudController extends AbstractCrudController
         \assert($entityInstance instanceof Album);
         $this->applyCoverUpload($entityInstance);
         $this->renumberAlbumTracks($entityInstance);
+        $entityInstance->touch();
         parent::updateEntity($entityManager, $entityInstance);
     }
 

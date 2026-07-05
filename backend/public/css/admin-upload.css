@@ -304,19 +304,33 @@
 
 .track-upload__batch-shared {
     display: grid;
-    grid-template-columns: 1fr 1fr auto;
+    grid-template-columns: 1fr 1fr minmax(140px, 180px) minmax(160px, 200px);
     gap: 0.875rem;
     margin-bottom: 1.25rem;
     padding-bottom: 1rem;
     border-bottom: 1px solid var(--tu-border);
+    align-items: end;
+}
+
+.track-upload__checks--batch {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem 1.5rem;
 }
 
 @media (max-width: 720px) {
     .track-upload__batch-shared { grid-template-columns: 1fr; }
+    .track-upload__checks--batch { grid-column: auto; }
 }
 
 .track-upload__field--narrow {
     max-width: 120px;
+}
+
+.track-upload__field--date input[type="date"] {
+    min-width: 0;
+    width: 100%;
 }
 
 .track-upload__batch-list {

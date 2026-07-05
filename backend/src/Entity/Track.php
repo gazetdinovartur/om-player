@@ -81,6 +81,12 @@ class Track
         return $this->id;
     }
 
+    /** Form binding only — primary key is assigned in constructor. */
+    public function setId(mixed $id): static
+    {
+        return $this;
+    }
+
     public function getSlug(): string
     {
         return $this->slug;

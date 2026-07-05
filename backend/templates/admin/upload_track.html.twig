@@ -130,11 +130,21 @@
                     <span>Альбом</span>
                     <input type="text" name="album" data-batch-album required>
                 </label>
-                <label class="track-upload__field track-upload__field--narrow">
-                    <span>Год</span>
-                    <input type="number" name="year" data-batch-year min="1900" max="2100">
+                <label class="track-upload__field">
+                    <span>Тип</span>
+                    <select name="album_type" data-batch-album-type>
+                        <option value="studio" selected>Альбом</option>
+                        <option value="ep">EP</option>
+                        <option value="single">Сингл</option>
+                        <option value="live">Концертный</option>
+                        <option value="compilation">Сборник</option>
+                    </select>
                 </label>
-                <div class="track-upload__checks">
+                <label class="track-upload__field track-upload__field--date">
+                    <span>Дата релиза</span>
+                    <input type="date" name="released_at" data-batch-released-at>
+                </label>
+                <div class="track-upload__checks track-upload__checks--batch">
                     <label class="track-upload__check">
                         <input type="checkbox" name="publish" value="1" data-batch-publish>
                         <span>Опубликовать треки</span>
