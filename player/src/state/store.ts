@@ -42,6 +42,8 @@ export class PlayerStore {
   private shouldResumeAfterNav = false;
   private intendedPlaying = false;
   private lastKnownPositionMs = 0;
+  private backgroundPlayback = false;
+  private backgroundResumeTimer: number | null = null;
 
   private resolvePersistedPosition(livePosition: number): number {
     if (livePosition > 1000) {
@@ -218,7 +220,9 @@ export class PlayerStore {
 
     this.engine.setVolume(this.volume);
     this.engine.onSpuriousPause(() => {
-      /* During Turbo navigation audio is zero-touch — see completeNavigationQuietly(). */
+      if (this.isNavigatingPlayback()) return;
+      if (!this.intendedPlaying && !this.backgroundPlayback) return;
+      this.scheduleBackgroundResume();
     });
     this.engine.onPlaybackStarted(() => {
       if (this.isNavigatingPlayback()) return;
@@ -277,6 +281,7 @@ export class PlayerStore {
     });
 
     this.wireAudioNavigationGuard();
+    this.wireBackgroundPlayback();
 
     document.addEventListener('turbo:click', () => {
       this.captureNavigationIntent();
@@ -354,6 +359,69 @@ export class PlayerStore {
 
     this.engine.seek(target);
     this.lastKnownPositionMs = target;
+  }
+
+  private wireBackgroundPlayback(): void {
+    const onHidden = (): void => {
+      if (this.isPlaying()) {
+        this.backgroundPlayback = true;
+        this.markPlaybackIntent();
+      }
+    };
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        onHidden();
+        return;
+      }
+      void this.resumeAfterBackground();
+    });
+
+    window.addEventListener('pagehide', onHidden);
+    document.addEventListener('freeze', onHidden);
+    document.addEventListener('resume', () => {
+      void this.resumeAfterBackground();
+    });
+  }
+
+  private scheduleBackgroundResume(): void {
+    if (this.backgroundResumeTimer !== null) return;
+    this.backgroundResumeTimer = window.setTimeout(() => {
+      this.backgroundResumeTimer = null;
+      void this.resumeAfterBackground();
+    }, 120);
+  }
+
+  private async resumeAfterBackground(): Promise<void> {
+    if (this.isNavigatingPlayback()) return;
+
+    const audio = this.engine.peekAudioElement();
+    if (!audio?.src || audio.ended) {
+      this.backgroundPlayback = false;
+      return;
+    }
+
+    if (!this.intendedPlaying && !this.backgroundPlayback) return;
+
+    if (!audio.paused) {
+      this.backgroundPlayback = false;
+      this.markPlaybackIntent();
+      this.engine.ensurePlaybackRunning();
+      return;
+    }
+
+    const ok = await this.engine.playFromAction();
+    if (ok) {
+      this.backgroundPlayback = false;
+      this.markPlaybackIntent();
+      this.engine.ensureMediaSessionHandlers();
+      this.notify();
+      return;
+    }
+
+    if (document.visibilityState === 'visible') {
+      this.backgroundPlayback = false;
+    }
   }
 
   private wireAudioNavigationGuard(): void {
@@ -524,6 +592,21 @@ export class PlayerStore {
   }
 
   async handleMediaPlay(): Promise<void> {
+    const audio = this.engine.peekAudioElement();
+    const track = this.engine.getCurrentTrack();
+    if (track && audio?.src && audio.paused && !audio.ended) {
+      this.tabs.announcePlayback();
+      const ok = await this.engine.playFromAction();
+      if (ok) {
+        this.markPlaybackIntent();
+        this.backgroundPlayback = false;
+        this.emit('om:play', track);
+        this.persist();
+        this.notify();
+        return;
+      }
+    }
+
     await this.ensureRestored();
     if (!this.engine.getCurrentTrack()) return;
     await this.engine.waitUntilReady();
@@ -531,18 +614,32 @@ export class PlayerStore {
     this.tabs.announcePlayback();
     const ok = await this.engine.playFromAction();
     if (!ok) return;
+    this.markPlaybackIntent();
+    this.backgroundPlayback = false;
     this.emit('om:play', this.engine.getCurrentTrack());
     this.persist();
     this.notify();
   }
 
   async handleMediaPause(): Promise<void> {
+    const audio = this.engine.peekAudioElement();
+    if (audio?.src && !audio.paused) {
+      this.engine.pauseFromAction();
+      this.clearPlaybackIntent();
+      this.backgroundPlayback = false;
+      this.emit('om:pause', this.engine.getCurrentTrack());
+      this.persist(true);
+      this.notify();
+      return;
+    }
+
     await this.ensureRestored();
     if (!this.engine.getCurrentTrack()) return;
     await this.engine.waitUntilReady();
     if (!this.isPlaying()) return;
     this.engine.pauseFromAction();
     this.clearPlaybackIntent();
+    this.backgroundPlayback = false;
     this.emit('om:pause', this.engine.getCurrentTrack());
     this.persist(true);
     this.notify();

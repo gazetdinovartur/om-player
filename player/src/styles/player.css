@@ -70,8 +70,8 @@
   --om-border: rgba(255, 255, 255, 0.08);
   --om-progress-bg: rgba(255, 255, 255, 0.14);
   --om-progress-fill: #ffffff;
-  --om-surface: rgba(20, 20, 22, 0.8);
-  --om-surface-elevated: rgba(28, 28, 31, 0.85);
+  --om-surface: rgba(18, 18, 20, 0.94);
+  --om-surface-elevated: rgba(24, 24, 27, 0.96);
 }
 
 .icon--play {
@@ -109,9 +109,13 @@
 /* Mini player — premium dark bar (Zvuk/Spotify style) */
 :host([mode='mini']) .player--mini {
   overflow: hidden;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 16px 48px rgba(0, 0, 0, 0.42),
+    0 4px 16px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .mini-row {
@@ -1322,7 +1326,7 @@
   flex-shrink: 0;
   display: flex;
   justify-content: center;
-  padding: 10px 0 4px;
+  padding: 18px 0 14px;
   cursor: grab;
   touch-action: none;
 }
@@ -1332,10 +1336,10 @@
 }
 
 .queue-sheet__grab {
-  width: 36px;
-  height: 4px;
+  width: 40px;
+  height: 5px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.38);
 }
 
 .btn--sheet-close {
@@ -1359,7 +1363,7 @@
   flex-direction: column;
   align-items: center;
   gap: 16px;
-  padding: 0 24px 20px;
+  padding: 12px 24px 20px;
 }
 
 .queue-sheet__cover-wrap {

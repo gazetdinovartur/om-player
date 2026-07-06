@@ -334,6 +334,8 @@ export class AudioEngine {
     el.id = AUDIO_ID;
     el.preload = 'auto';
     el.setAttribute('playsinline', '');
+    el.setAttribute('webkit-playsinline', '');
+    el.setAttribute('x-webkit-airplay', 'allow');
     el.hidden = true;
     root.appendChild(el);
     return this.bindAudioElement(el);
@@ -585,12 +587,27 @@ export class AudioEngine {
 
   setMediaHandlers(handlers: MediaHandlers): void {
     this.mediaHandlers = handlers;
+    this.bindMediaSessionHandlers();
+  }
+
+  ensureMediaSessionHandlers(): void {
+    this.bindMediaSessionHandlers();
   }
 
   primeMediaSession(title: string, artist: string, wasPlaying: boolean): void {
     if (!('mediaSession' in navigator)) return;
     navigator.mediaSession.metadata = new MediaMetadata({ title, artist, album: 'OmPlayer' });
     navigator.mediaSession.playbackState = wasPlaying ? 'playing' : 'paused';
+    this.bindMediaSessionHandlers();
+  }
+
+  private absolutizeMediaUrl(url: string): string {
+    if (/^https?:\/\//i.test(url)) return url;
+    try {
+      return new URL(url.startsWith('/') ? url : `/${url}`, window.location.origin).href;
+    } catch {
+      return url;
+    }
   }
 
   private startTimer(): void {
@@ -675,9 +692,19 @@ export class AudioEngine {
     if (!('mediaSession' in navigator)) return;
 
     const artwork: MediaImage[] = [];
-    if (track.coverUrl) artwork.push({ src: track.coverUrl, sizes: '512x512', type: 'image/jpeg' });
+    if (track.coverUrl) {
+      artwork.push({
+        src: this.absolutizeMediaUrl(track.coverUrl),
+        sizes: '512x512',
+        type: 'image/jpeg',
+      });
+    }
     if (track.coverThumbUrl && track.coverThumbUrl !== track.coverUrl) {
-      artwork.push({ src: track.coverThumbUrl, sizes: '128x128', type: 'image/jpeg' });
+      artwork.push({
+        src: this.absolutizeMediaUrl(track.coverThumbUrl),
+        sizes: '128x128',
+        type: 'image/jpeg',
+      });
     }
 
     navigator.mediaSession.metadata = new MediaMetadata({
