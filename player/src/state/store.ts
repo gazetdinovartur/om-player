@@ -855,9 +855,20 @@ export class PlayerStore {
       return true;
     }
 
-    if (!current || this.queue.length === 0) {
+    if (!current && this.queue.length === 0) {
       this.loadTrack(track, 0, true);
       return true;
+    }
+
+    if (current) {
+      const currentIdx = this.queueIndexOf(current.slug);
+      if (currentIdx >= 0) {
+        this.queueIndex = currentIdx;
+      } else if (this.queue.length === 0) {
+        this.queue = [current];
+        this.originalQueue = [current];
+        this.queueIndex = 0;
+      }
     }
 
     const insertAt = this.queueIndex + 1;

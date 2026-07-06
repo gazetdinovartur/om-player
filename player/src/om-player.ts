@@ -1752,6 +1752,7 @@ export class OmPlayer extends LitElement {
       if (added) {
         this.visible = true;
         this.showQueueNotice(wasInQueue ? 'Перемещено вверх' : 'Будет следующим');
+        getGlobalPlayerEl()?.showPublic?.();
         this.dispatchEvent(new CustomEvent('om:queue-add', { bubbles: true, composed: true, detail: { track: detail, next: true } }));
       }
       return added;
