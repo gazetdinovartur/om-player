@@ -37,6 +37,19 @@ function formatMs(ms: number): string {
   return `${m}:${String(s % 60).padStart(2, '0')}`;
 }
 
+function trackTypeLabelFromValue(type: string): string {
+  switch (type) {
+    case 'live':
+      return 'Концертная';
+    case 'demo':
+      return 'Демо';
+    case 'rehearsal':
+      return 'Репетиция';
+    default:
+      return 'Студийная';
+  }
+}
+
 function pluralTracks(n: number): string {
   const mod10 = n % 10;
   const mod100 = n % 100;
@@ -1034,10 +1047,6 @@ export class OmPlayer extends LitElement {
   private renderTrackInfoSections(detail: TrackDetail): unknown {
     const credits = detail.credits?.trim() ?? '';
     const description = detail.description?.trim() ?? '';
-    const lyrics = detail.lyrics?.trim() ?? '';
-    if (!credits && !description && !lyrics) {
-      return html`<p class="track-info-panel__state">Нет дополнительной информации</p>`;
-    }
     return html`
       ${credits
         ? html`<section class="track-info-section"><h4 class="track-info-section__title">Участники</h4><p class="track-info-section__text">${credits}</p></section>`
@@ -1045,9 +1054,57 @@ export class OmPlayer extends LitElement {
       ${description
         ? html`<section class="track-info-section"><h4 class="track-info-section__title">Описание</h4><p class="track-info-section__text">${description}</p></section>`
         : nothing}
-      ${lyrics
-        ? html`<section class="track-info-section"><h4 class="track-info-section__title">Текст</h4><pre class="track-info-lyrics">${lyrics}</pre></section>`
-        : nothing}
+    `;
+  }
+
+  private trackTypeLabel(detail: TrackDetail): string {
+    if (detail.typeLabel?.trim()) return detail.typeLabel.trim();
+    return trackTypeLabelFromValue(detail.type);
+  }
+
+  private renderTrackInfoHero(detail: TrackDetail): unknown {
+    const cover = detail.coverThumbUrl ?? detail.coverUrl ?? detail.album?.coverUrl ?? '';
+    const albumSlug = detail.albumSlug ?? detail.album?.slug ?? null;
+    const albumTitle = detail.albumTitle ?? detail.album?.title ?? null;
+    const releaseYear = (detail.albumReleasedAt ?? detail.album?.releasedAt ?? '').slice(0, 4);
+    const metaParts: string[] = [];
+
+    if (detail.trackNumber != null) {
+      metaParts.push(`№ ${detail.trackNumber}`);
+    }
+    if (releaseYear) {
+      metaParts.push(releaseYear);
+    }
+    if (detail.durationMs > 0) {
+      metaParts.push(formatMs(detail.durationMs));
+    }
+
+    const genre = detail.genre?.trim() ?? '';
+
+    return html`
+      <div class="track-info-hero">
+        ${cover
+          ? html`<img class="track-info-hero__cover" src=${cover} alt="" loading="lazy" decoding="async">`
+          : html`<div class="track-info-hero__cover track-info-hero__cover--placeholder" aria-hidden="true"></div>`}
+        <div class="track-info-hero__body">
+          <p class="track-info-hero__title">${detail.title}</p>
+          <p class="track-info-hero__artist">${detail.artistName}</p>
+          ${albumTitle || metaParts.length > 0
+            ? html`<p class="track-info-hero__meta">
+                ${albumSlug && albumTitle
+                  ? html`<a class="track-info-hero__album" href="/music/${albumSlug}">${albumTitle}</a>`
+                  : albumTitle ?? nothing}
+                ${metaParts.length > 0
+                  ? html`${albumTitle ? ' · ' : nothing}${metaParts.join(' · ')}`
+                  : nothing}
+              </p>`
+            : nothing}
+          <div class="track-info-hero__badges">
+            <span class="track-info-badge track-info-badge--type">${this.trackTypeLabel(detail)}</span>
+            ${genre ? html`<span class="track-info-badge">${genre}</span>` : nothing}
+          </div>
+        </div>
+      </div>
     `;
   }
 
@@ -1062,7 +1119,10 @@ export class OmPlayer extends LitElement {
         </div>
         ${this.trackInfoLoading ? html`<p class="track-info-panel__state">Загрузка…</p>` : nothing}
         ${this.trackInfoError ? html`<p class="track-info-panel__state track-info-panel__state--error">${this.trackInfoError}</p>` : nothing}
-        ${!this.trackInfoLoading && detail ? this.renderTrackInfoSections(detail) : nothing}
+        ${!this.trackInfoLoading && detail ? html`
+          ${this.renderTrackInfoHero(detail)}
+          ${this.renderTrackInfoSections(detail)}
+        ` : nothing}
       </aside>
     `;
   }

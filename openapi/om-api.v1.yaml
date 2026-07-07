@@ -372,6 +372,9 @@ components:
         type:
           type: string
           enum: [studio, live, demo, rehearsal]
+        typeLabel:
+          type: string
+          nullable: true
         coverUrl:
           type: string
           format: uri
@@ -400,6 +403,15 @@ components:
               type: string
               nullable: true
             genre:
+              type: string
+              nullable: true
+            composer:
+              type: string
+              nullable: true
+            albumArtist:
+              type: string
+              nullable: true
+            label:
               type: string
               nullable: true
             album:

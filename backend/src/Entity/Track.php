@@ -60,6 +60,15 @@ class Track
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $lyrics = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $composer = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $albumArtist = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $label = null;
+
     #[ORM\Column]
     private bool $published = false;
 
@@ -251,6 +260,42 @@ class Track
     public function setLyrics(?string $lyrics): static
     {
         $this->lyrics = $lyrics;
+
+        return $this;
+    }
+
+    public function getComposer(): ?string
+    {
+        return $this->composer;
+    }
+
+    public function setComposer(?string $composer): static
+    {
+        $this->composer = $composer;
+
+        return $this;
+    }
+
+    public function getAlbumArtist(): ?string
+    {
+        return $this->albumArtist;
+    }
+
+    public function setAlbumArtist(?string $albumArtist): static
+    {
+        $this->albumArtist = $albumArtist;
+
+        return $this;
+    }
+
+    public function getLabel(): ?string
+    {
+        return $this->label;
+    }
+
+    public function setLabel(?string $label): static
+    {
+        $this->label = $label;
 
         return $this;
     }

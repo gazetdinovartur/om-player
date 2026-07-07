@@ -126,6 +126,10 @@ final class CatalogResolver
             ->setAudioPath($audioPath)
             ->setAudioMimeType($meta->mimeType)
             ->setGenre($meta->genre)
+            ->setLyrics($meta->lyrics)
+            ->setComposer($meta->composer)
+            ->setAlbumArtist($meta->albumArtist)
+            ->setLabel($meta->label)
             ->setType(TrackType::STUDIO)
             ->setPublished($published);
 

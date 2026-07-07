@@ -17,6 +17,10 @@ final readonly class ExtractedAudioMetadata
         public ?string $genre,
         public ?ExtractedCover $embeddedCover,
         public string $mimeType,
+        public ?string $lyrics = null,
+        public ?string $composer = null,
+        public ?string $albumArtist = null,
+        public ?string $label = null,
     ) {
     }
 }

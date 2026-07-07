@@ -732,6 +732,94 @@
   color: var(--om-danger, #c0392b);
 }
 
+.track-info-hero {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.track-info-hero__cover {
+  width: 72px;
+  height: 72px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: var(--om-surface-elevated, rgba(255, 255, 255, 0.04));
+}
+
+.track-info-hero__cover--placeholder {
+  border: 1px solid var(--om-border);
+}
+
+.track-info-hero__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.track-info-hero__title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  color: var(--om-text);
+}
+
+.track-info-hero__artist {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--om-text-secondary);
+}
+
+.track-info-hero__meta {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--om-text-muted);
+}
+
+.track-info-hero__album {
+  color: inherit;
+  text-decoration: none;
+  transition: color 160ms ease;
+}
+
+.track-info-hero__album:hover {
+  color: var(--om-text-secondary);
+  text-decoration: underline;
+}
+
+.track-info-hero__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.track-info-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border: 1px solid var(--om-border);
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--om-text-secondary);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.track-info-badge--type {
+  color: var(--om-text);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.track-info-hero + .track-info-section {
+  margin-top: 12px;
+}
+
 .track-info-section + .track-info-section {
   margin-top: 4px;
 }

@@ -89,7 +89,10 @@ final class TrackCrudController extends AbstractCrudController
         yield IntegerField::new('trackNumber', '№ в альбоме')->setColumns(3);
 
         yield BooleanField::new('published', 'Опубликован')->setColumns(3);
-        yield TextField::new('genre', 'Жанр')->setColumns(9);
+        yield TextField::new('genre', 'Жанр')->setColumns(4);
+        yield TextField::new('composer', 'Композитор')->setColumns(4);
+        yield TextField::new('albumArtist', 'Album Artist')->setColumns(4);
+        yield TextField::new('label', 'Лейбл')->setColumns(4);
 
         if ($pageName === Crud::PAGE_EDIT) {
             yield IntegerField::new('durationMs', 'Длительность')
@@ -112,31 +115,26 @@ final class TrackCrudController extends AbstractCrudController
         yield TextareaField::new('credits', 'Участники')
             ->setColumns(6)
             ->setNumOfRows(5);
-        yield TextareaField::new('lyrics', 'Текст песни')
+        yield TextareaField::new('lyrics', 'Текст (ID3 / ручной ввод)')
             ->setColumns(6)
-            ->setNumOfRows(5);
+            ->setNumOfRows(8)
+            ->setHelp('При загрузке подставляется из USLT-тега, если есть.');
     }
 
     /** @return array<string, TrackType> */
     private static function typeChoices(): array
     {
         return [
-            'Студийная' => TrackType::STUDIO,
-            'Концертная' => TrackType::LIVE,
-            'Демо' => TrackType::DEMO,
-            'Репетиция' => TrackType::REHEARSAL,
+            TrackType::STUDIO->label() => TrackType::STUDIO,
+            TrackType::LIVE->label() => TrackType::LIVE,
+            TrackType::DEMO->label() => TrackType::DEMO,
+            TrackType::REHEARSAL->label() => TrackType::REHEARSAL,
         ];
     }
 
     private static function typeLabel(?TrackType $type): string
     {
-        return match ($type) {
-            TrackType::STUDIO => 'Студийная',
-            TrackType::LIVE => 'Концертная',
-            TrackType::DEMO => 'Демо',
-            TrackType::REHEARSAL => 'Репетиция',
-            default => '—',
-        };
+        return $type?->label() ?? '—';
     }
 
     private static function formatDurationMs(int $durationMs): string

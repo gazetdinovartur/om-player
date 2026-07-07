@@ -31,6 +31,7 @@ final class TrackApiSerializer
             'albumReleasedAt' => $album?->getReleasedAt()?->format('Y-m-d'),
             'durationMs' => $track->getDurationMs(),
             'type' => $track->getType()->value,
+            'typeLabel' => $track->getType()->label(),
             'coverUrl' => $this->mediaUrlGenerator->url($track->getEffectiveCoverPath()),
             'coverThumbUrl' => $this->mediaUrlGenerator->url($track->getEffectiveCoverThumbPath()),
         ];
@@ -46,6 +47,9 @@ final class TrackApiSerializer
         $data['credits'] = $track->getCredits();
         $data['lyrics'] = $track->getLyrics();
         $data['genre'] = $track->getGenre();
+        $data['composer'] = $track->getComposer();
+        $data['albumArtist'] = $track->getAlbumArtist();
+        $data['label'] = $track->getLabel();
         $data['album'] = $album !== null ? [
             'slug' => $album->getSlug(),
             'title' => $album->getTitle(),

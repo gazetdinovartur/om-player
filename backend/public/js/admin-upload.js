@@ -52,6 +52,15 @@
     const coverPlaceholder = root.querySelector('[data-cover-placeholder]');
     const fileNameEl = root.querySelector('[data-file-name]');
     const durationMeta = root.querySelector('[data-duration-meta]');
+    const id3Meta = root.querySelector('[data-id3-meta]');
+    const metaFields = {
+        genre: root.querySelector('[data-meta-genre]'),
+        composer: root.querySelector('[data-meta-composer]'),
+        albumArtist: root.querySelector('[data-meta-album-artist]'),
+        label: root.querySelector('[data-meta-label]'),
+        lyricsWrap: root.querySelector('[data-meta-lyrics-wrap]'),
+        lyrics: root.querySelector('[data-meta-lyrics]'),
+    };
 
     /** @type {Array<{token: string, preview: object, fileName: string}>} */
     let batchItems = [];
@@ -119,6 +128,54 @@
         if (fields.token) fields.token.value = '';
         batchList.innerHTML = '';
         batchItemsInput.value = '';
+        if (id3Meta) id3Meta.hidden = true;
+    }
+
+    function metaValue(value) {
+        const text = value != null ? String(value).trim() : '';
+        return text !== '' ? text : '—';
+    }
+
+    function fillId3Meta(p) {
+        if (!id3Meta) return;
+        id3Meta.hidden = false;
+        if (metaFields.genre) metaFields.genre.textContent = metaValue(p.genre);
+        if (metaFields.composer) metaFields.composer.textContent = metaValue(p.composer);
+        if (metaFields.albumArtist) metaFields.albumArtist.textContent = metaValue(p.albumArtist);
+        if (metaFields.label) metaFields.label.textContent = metaValue(p.label);
+
+        const lyrics = p.lyrics != null ? String(p.lyrics).trim() : '';
+        if (metaFields.lyricsWrap && metaFields.lyrics) {
+            if (lyrics !== '') {
+                metaFields.lyrics.textContent = lyrics;
+                metaFields.lyricsWrap.classList.remove('is-hidden');
+            } else {
+                metaFields.lyrics.textContent = '';
+                metaFields.lyricsWrap.classList.add('is-hidden');
+            }
+        }
+    }
+
+    function id3MetaHtml(p) {
+        const rows = [
+            ['Жанр', metaValue(p.genre)],
+            ['Композитор', metaValue(p.composer)],
+            ['Album Artist', metaValue(p.albumArtist)],
+            ['Лейбл', metaValue(p.label)],
+        ];
+        const lyrics = p.lyrics != null ? String(p.lyrics).trim() : '';
+        const rowsHtml = rows
+            .map(
+                ([label, value]) =>
+                    `<div class="track-upload__id3-row"><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`,
+            )
+            .join('');
+        const lyricsHtml =
+            lyrics !== ''
+                ? `<div class="track-upload__id3-lyrics"><p class="track-upload__id3-lyrics-label">Текст (USLT)</p><pre class="track-upload__id3-lyrics-text">${escapeHtml(lyrics)}</pre></div>`
+                : '';
+
+        return `<div class="track-upload__id3 track-upload__id3--batch"><p class="track-upload__id3-title">Метаданные из файла</p><dl class="track-upload__id3-list">${rowsHtml}</dl>${lyricsHtml}</div>`;
     }
 
     function fillPreview(data, fileName) {
@@ -144,6 +201,7 @@
         }
 
         showPreviewState();
+        fillId3Meta(p);
     }
 
     function renderBatchList() {
@@ -172,6 +230,7 @@
                         <input type="number" data-batch-track-number value="${escapeAttr(String(p.trackNumber ?? index + 1))}" min="1">
                     </label>
                 </div>
+                ${id3MetaHtml(p)}
             `;
 
             batchList.appendChild(li);

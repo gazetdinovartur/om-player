@@ -10,4 +10,14 @@ enum TrackType: string
     case LIVE = 'live';
     case DEMO = 'demo';
     case REHEARSAL = 'rehearsal';
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::STUDIO => 'Студийная',
+            self::LIVE => 'Концертная',
+            self::DEMO => 'Демо',
+            self::REHEARSAL => 'Репетиция',
+        };
+    }
 }

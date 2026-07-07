@@ -289,6 +289,11 @@ final class TrackUploadHandler
             'durationMs' => $meta->durationMs,
             'durationLabel' => $this->formatDuration($meta->durationMs),
             'genre' => $meta->genre,
+            'composer' => $meta->composer,
+            'albumArtist' => $meta->albumArtist,
+            'label' => $meta->label,
+            'lyrics' => $meta->lyrics,
+            'hasLyrics' => $meta->lyrics !== null && trim($meta->lyrics) !== '',
             'hasCover' => $meta->embeddedCover !== null,
             'coverDataUri' => $coverDataUri,
         ];
@@ -396,6 +401,10 @@ final class TrackUploadHandler
             $meta->genre,
             $embeddedCover,
             $meta->mimeType,
+            $meta->lyrics,
+            $meta->composer,
+            $meta->albumArtist,
+            $meta->label,
         );
     }
 

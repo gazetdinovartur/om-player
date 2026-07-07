@@ -67,6 +67,25 @@ final class AudioMetadataExtractor
             $info['tags']['id3v1']['genre'][0] ?? null,
         ]);
 
+        $lyrics = $this->extractLyrics($info);
+
+        $composer = $this->firstNonEmpty([
+            $info['tags']['id3v2']['composer'][0] ?? null,
+            $info['tags']['id3v1']['composer'][0] ?? null,
+        ]);
+
+        $albumArtist = $this->firstNonEmpty([
+            $info['tags']['id3v2']['band'][0] ?? null,
+            $info['tags']['id3v2']['albumartist'][0] ?? null,
+            $info['tags']['id3v2']['album_artist'][0] ?? null,
+        ]);
+
+        $label = $this->firstNonEmpty([
+            $info['tags']['id3v2']['publisher'][0] ?? null,
+            $info['tags']['id3v1']['publisher'][0] ?? null,
+            $info['tags']['id3v2']['label'][0] ?? null,
+        ]);
+
         $durationMs = (int) round((float) ($info['playtime_seconds'] ?? 0) * 1000);
 
         $embeddedCover = null;
@@ -97,7 +116,41 @@ final class AudioMetadataExtractor
             genre: $genre !== null ? trim($genre) : null,
             embeddedCover: $embeddedCover,
             mimeType: $mimeType,
+            lyrics: $lyrics !== null ? trim($lyrics) : null,
+            composer: $composer !== null ? trim($composer) : null,
+            albumArtist: $albumArtist !== null ? trim($albumArtist) : null,
+            label: $label !== null ? trim($label) : null,
         );
+    }
+
+    /** @param array<string, mixed> $info */
+    private function extractLyrics(array $info): ?string
+    {
+        $candidates = [];
+
+        foreach (['unsynchronised_lyric', 'lyrics', 'unsynchronised lyrics'] as $key) {
+            $value = $info['tags']['id3v2'][$key][0] ?? null;
+            if (is_string($value) && trim($value) !== '') {
+                $candidates[] = $value;
+            }
+        }
+
+        if (!empty($info['id3v2']['USLT']) && is_array($info['id3v2']['USLT'])) {
+            foreach ($info['id3v2']['USLT'] as $frame) {
+                if (is_array($frame) && !empty($frame['data']) && is_string($frame['data'])) {
+                    $candidates[] = $frame['data'];
+                }
+            }
+        }
+
+        foreach ($candidates as $text) {
+            $trimmed = trim($text);
+            if ($trimmed !== '') {
+                return $trimmed;
+            }
+        }
+
+        return null;
     }
 
     /** @param list<string|null> $values */

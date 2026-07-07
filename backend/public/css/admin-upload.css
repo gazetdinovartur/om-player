@@ -387,3 +387,85 @@
 .track-upload__batch-remove:hover {
     color: #b02a37;
 }
+
+.track-upload__id3 {
+    margin-top: 4px;
+    padding: 14px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.18);
+}
+
+.track-upload__id3--batch {
+    margin-top: 12px;
+}
+
+.track-upload__id3-title {
+    margin: 0 0 10px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.track-upload__id3-list {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+}
+
+.track-upload__id3-row {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 10px;
+    align-items: start;
+}
+
+.track-upload__id3-row dt {
+    margin: 0;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.track-upload__id3-row dd {
+    margin: 0;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.88);
+    word-break: break-word;
+}
+
+.track-upload__id3-lyrics {
+    margin-top: 12px;
+}
+
+.track-upload__id3-lyrics-label {
+    margin: 0 0 6px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.track-upload__id3-lyrics-text {
+    margin: 0;
+    max-height: 160px;
+    padding: 10px 12px;
+    overflow: auto;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.22);
+    font: inherit;
+    font-size: 0.8125rem;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    color: rgba(255, 255, 255, 0.82);
+}
+
+@media (max-width: 640px) {
+    .track-upload__id3-row {
+        grid-template-columns: 1fr;
+        gap: 2px;
+    }
+}

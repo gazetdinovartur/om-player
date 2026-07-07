@@ -14,6 +14,7 @@ export interface TrackSummary {
   albumReleasedAt?: string | null;
   durationMs: number;
   type: string;
+  typeLabel?: string | null;
   coverUrl?: string | null;
   coverThumbUrl?: string | null;
   trackNumber?: number | null;
@@ -25,6 +26,9 @@ export interface TrackDetail extends TrackSummary {
   credits?: string | null;
   lyrics?: string | null;
   genre?: string | null;
+  composer?: string | null;
+  albumArtist?: string | null;
+  label?: string | null;
   album?: { slug: string; title: string; releasedAt?: string | null; coverUrl?: string | null } | null;
   stream: StreamInfo;
 }
